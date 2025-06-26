@@ -1,7 +1,7 @@
 // components/MonthlyCalendar.tsx（イベントあり＝ピンク、参加済み＝青に区別表示）
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import ja from "date-fns/locale/ja";
+import { ja } from 'date-fns/locale';
 import { db, auth } from "@/lib/firebase";
 import {
   collection,
