@@ -89,7 +89,7 @@ export default function MonthlyCalendar() {
   };
 
   const isJoined = (ev: EventData): boolean => {
-    return uid && ev.participants?.includes(uid);
+    return !!(uid && ev.participants?.includes(uid));
   };
 
   const handleClick = (eventId: string) => {
