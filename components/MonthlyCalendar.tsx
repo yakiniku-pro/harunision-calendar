@@ -1,7 +1,7 @@
 // components/MonthlyCalendar.tsx（Step 6-1: 曜日カラー表示追加）
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import ja from "date-fns/locale/ja";
+import { ja } from "date-fns/locale/ja";
 import { db, auth } from "@/lib/firebase";
 import {
   collection,
