@@ -1,7 +1,8 @@
-// pages/index.tsx（トップアクセス時に /calendar-combined へ自動リダイレクト）
+// pages/index.tsx
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
+// Vercelデプロイ用のコメント
 export default function Home() {
   const router = useRouter();
 
