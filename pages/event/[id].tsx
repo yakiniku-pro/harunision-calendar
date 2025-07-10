@@ -1,143 +1,207 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { format } from "date-fns";
+import { ADMIN_UIDS } from "@/lib/config"; // 管理者UIDをインポート
+import { format, isWithinInterval } from "date-fns";
+import { ja } from "date-fns/locale";
 import Image from "next/image";
-import Link from "next/link"; // Linkをインポート
+import Link from "next/link";
+import { User } from "firebase/auth";
 
-const members = ["馬場彩華", "芹沢心色", "来海とい", "長浜瑠花", "村瀬ゆうな", "福間彩音"];
-const colors: { [name: string]: string } = {
-  "馬場彩華": "bg-yellow-400",
-  "芹沢心色": "bg-red-500",
-  "来海とい": "bg-green-400",
-  "長浜瑠花": "bg-purple-500",
-  "村瀬ゆうな": "bg-pink-400",
-  "福間彩音": "bg-sky-400"
+// 型定義
+interface EventData {
+  title: string; date: any; venue: string; openTime: string; startTime: string;
+  prices: { tierName: string; amount: number; drinks: string; }[];
+  womenOnlyArea: string; photoPolicy: { still: string; video: string; };
+  ticketUrl: string; performanceTimes: { startAt: string; endAt: string; }[];
+  bonusEventTimes: { startAt: string; endAt: string; }[];
+  attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
+  groupId: string;
+}
+interface Person { id: string; primaryName: string; color?: string; }
+interface Membership { personId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; groupId: string; }
+
+// セクション表示用コンポーネント
+const InfoSection = ({ title, children, condition = true }: { title: string, children: React.ReactNode, condition?: boolean }) => {
+  if (!condition) return null;
+  return (
+    <div className="pt-4 mt-4 border-t border-gray-200">
+      <h2 className="text-lg font-semibold text-gray-800 mb-2">{title}</h2>
+      <div className="space-y-2 text-sm text-gray-700">{children}</div>
+    </div>
+  );
 };
 
 export default function EventDetailPage() {
   const router = useRouter();
   const { id } = router.query;
-  const [event, setEvent] = useState<any>(null);
-  const [chekiMemo, setChekiMemo] = useState<{ [name: string]: number }>({});
-  const [uid, setUid] = useState<string | null>(null);
-  const [joined, setJoined] = useState(false);
+  const [event, setEvent] = useState<EventData | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
+  const [activeMembers, setActiveMembers] = useState<Person[]>([]);
+  
+  // ★ 管理者かどうかを判定するフラグ
+  const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
   useEffect(() => {
-    // idが文字列で、かつ空でないことを確認
-    if (typeof id !== "string" || !id) return;
+    if (typeof id !== 'string' || !id) return;
 
-    const fetchEvent = async () => {
+    const fetchEventData = async () => {
+      setLoading(true);
       try {
-        const snap = await getDoc(doc(db, "events", id));
-        if (snap.exists()) {
-          const data = snap.data();
-          setEvent(data);
-          setChekiMemo(data.chekiMemo || {});
-          // auth.currentUserが利用可能になってからUIDを比較
-          const currentUser = auth.currentUser;
-          if (currentUser) {
-            setJoined(data.participants?.includes(currentUser.uid) || false);
-          }
-        } else {
-          console.warn("イベントが見つかりません");
+        const eventRef = doc(db, "events", id);
+        const eventSnap = await getDoc(eventRef);
+
+        if (!eventSnap.exists()) {
+          setLoading(false); return;
+        }
+        const eventData = eventSnap.data() as EventData;
+        setEvent(eventData);
+
+        const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
+        const membershipsSnap = await getDocs(membershipsQuery);
+        const eventDate = eventData.date.toDate();
+        
+        const activePersonIds = membershipsSnap.docs
+          .map(d => d.data() as Membership)
+          .filter(m => {
+            const joined = m.joinedAt.toDate();
+            const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000); 
+            return isWithinInterval(eventDate, { start: joined, end: left });
+          })
+          .map(m => m.personId);
+
+        if (activePersonIds.length > 0) {
+          const personsQuery = query(collection(db, "persons"), where("__name__", "in", activePersonIds));
+          const personsSnap = await getDocs(personsQuery);
+          setActiveMembers(personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[]);
         }
       } catch (error) {
-        console.error("取得失敗:", error);
+        console.error("イベントデータの取得に失敗しました:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    // Firebase Authの初期化を待つ
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      setUid(user?.uid || null);
-      fetchEvent();
+    fetchEventData();
+
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      setUser(currentUser); // ★ ユーザー情報をStateにセット
+      if (currentUser && typeof id === 'string') {
+        const userRecordRef = doc(db, "events", id, "userRecords", currentUser.uid);
+        const userRecordSnap = await getDoc(userRecordRef);
+        if (userRecordSnap.exists()) {
+          setChekiMemo(userRecordSnap.data().chekiMemo || {});
+        } else {
+          setChekiMemo({});
+        }
+      } else {
+        setChekiMemo({});
+      }
     });
 
     return () => unsubscribe();
   }, [id]);
 
   const updateCheki = async () => {
-    if (typeof id !== "string") return;
-    await updateDoc(doc(db, "events", id), { chekiMemo });
+    if (!user || typeof id !== 'string') return;
+    const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
+    await setDoc(userRecordRef, { chekiMemo }, { merge: true });
     alert("チェキ枚数を保存しました！");
   };
 
-  const toggleParticipation = async () => {
-    if (!id || !uid || typeof id !== "string") return;
-    const ref = doc(db, "events", id);
-    await updateDoc(ref, {
-      participants: joined ? arrayRemove(uid) : arrayUnion(uid)
-    });
-    setJoined(!joined);
-  };
-
-  const adjust = (name: string, delta: number) => {
+  const adjust = (personId: string, delta: number) => {
     setChekiMemo(prev => ({
       ...prev,
-      [name]: Math.max(0, (prev[name] || 0) + delta)
+      [personId]: Math.max(0, (prev[personId] || 0) + delta)
     }));
   };
 
-  if (loading) return <div className="p-4 text-center">読み込み中...</div>;
-  if (!event) return <div className="p-4 text-center text-red-500">イベントが見つかりませんでした。</div>;
+  if (loading) return <div className="p-6 text-center">読み込み中...</div>;
+  if (!event) return <div className="p-6 text-center text-red-500">イベントが見つかりませんでした。</div>;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
-      <Link href="/calendar-combined" className="text-sm text-blue-600 underline hover:text-blue-800">
-          ← カレンダーに戻る
+    <div className="p-4 md:p-6 max-w-2xl mx-auto bg-white rounded-lg shadow-lg">
+      <Link href="/calendar-combined" className="text-sm text-blue-600 underline hover:text-blue-800 mb-4 inline-block">
+        ← カレンダーに戻る
       </Link>
 
-      <h1 className="text-3xl font-bold">{event.title}</h1>
+      {/* ★ 管理者用の編集リンク */}
+      {isAdmin && (
+        <div className="my-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
+          <Link href={`/admin/edit/${id}`} className="font-bold text-yellow-800 hover:underline">
+            管理者としてこのイベントを編集する
+          </Link>
+        </div>
+      )}
+
+      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
+      <p className="text-md text-gray-500 mt-1">{format(event.date.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}</p>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {event.eventPhotoUrl && (
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-1">イベント写真</h3>
+            <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
+          </div>
+        )}
+        {event.memberPhotoUrl && (
+          <div>
+            <h3 className="font-semibold text-gray-700 mb-1">メンバー写真</h3>
+            <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
+          </div>
+        )}
+      </div>
+
+      <InfoSection title="基本情報">
+        <p><strong>会場:</strong> {event.venue || '未定'}</p>
+        <p><strong>時間:</strong> 開場 {event.openTime || '未定'} / 開演 {event.startTime || '未定'}</p>
+      </InfoSection>
+
+      <InfoSection title="料金" condition={event.prices && event.prices.length > 0}>
+        {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
+      </InfoSection>
+
+      <InfoSection title="出演時間" condition={event.performanceTimes && event.performanceTimes.length > 0}>
+        {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+      </InfoSection>
+
+      <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
+        {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+      </InfoSection>
+
+      <InfoSection title="詳細">
+        <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>
+        <p><strong>撮影:</strong> 静止画-{event.photoPolicy?.still || '不明'} / 動画-{event.photoPolicy?.video || '不明'}</p>
+        {event.attendanceBonus && <p><strong>来場特典:</strong> {event.attendanceBonus}</p>}
+      </InfoSection>
+
+      <InfoSection title="チケットURL" condition={!!event.ticketUrl}>
+        <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{event.ticketUrl}</a>
+      </InfoSection>
       
-      {/* ClientOnlyを使わず、event.dateが存在する場合のみformatするように変更 */}
-      {event.date && <p>📅 日付：{format(event.date.toDate(), "yyyy年MM月dd日")}</p>}
-      <p>⏰ 開場：{event.openTime || "未定"} ／ 開演：{event.startTime || "未定"}</p>
-      <p>📍 会場：{event.venue}</p>
-      <p>💴 料金：{event.price?.priority}円（優先）／{event.price?.general}円（一般）</p>
-
-      {event.eventPhotoUrl && (
-        <div>
-          <h2 className="text-xl font-semibold mt-4">📸 イベント写真</h2>
-          <Image src={event.eventPhotoUrl} alt="event photo" width={640} height={360} className="rounded mt-2" />
-        </div>
-      )}
-
-      {event.memberPhotoUrl && (
-        <div>
-          <h2 className="text-xl font-semibold mt-4">🧑‍🎤 メンバー写真</h2>
-          <Image src={event.memberPhotoUrl} alt="member photo" width={640} height={360} className="rounded mt-2" />
-        </div>
-      )}
-
-      <div>
-        <h2 className="text-xl font-semibold mb-2">📝 チェキメモ</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {members.map(name => (
-            <div key={name} className="flex items-center gap-2">
-              <span className={`inline-block w-4 h-4 ${colors[name]} rounded-full flex-shrink-0`} />
-              <span className="w-24 font-medium">{name}</span>
-              <div className="flex items-center gap-2">
-                <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(name, -1)}>-</button>
-                <span className="w-6 text-center">{chekiMemo[name] || 0}</span>
-                <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(name, 1)}>+</button>
+      {user && (
+        <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {activeMembers.map(person => (
+              <div key={person.id} className="flex items-center gap-3">
+                <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
+                <span className="w-24 font-medium">{person.primaryName}</span>
+                <div className="flex items-center gap-2">
+                  <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, -1)}>-</button>
+                  <span className="w-6 text-center">{chekiMemo[person.id] || 0}</span>
+                  <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, 1)}>+</button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <button onClick={updateCheki} className="mt-4 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
-          チェキ枚数を保存
-        </button>
-      </div>
-
-      <div>
-        <button onClick={toggleParticipation} className={`w-full px-4 py-2 rounded text-white font-semibold transition-opacity ${joined ? "bg-gray-500 hover:opacity-90" : "bg-blue-500 hover:opacity-90"}`}>
-          {joined ? "参加を取り消す" : "参加する"}
-        </button>
-      </div>
+            ))}
+          </div>
+          <button onClick={updateCheki} className="mt-4 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
+            チェキ枚数を保存
+          </button>
+        </InfoSection>
+      )}
     </div>
   );
 }

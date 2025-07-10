@@ -1,137 +1,218 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, query, getDocs, orderBy, serverTimestamp, doc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import imageCompression from "browser-image-compression";
 import Link from "next/link";
-import { ADMIN_UIDS } from "@/lib/config"; // Import from the new config file
+import { ADMIN_UIDS } from "@/lib/config";
+import { User } from "firebase/auth";
+import imageCompression from "browser-image-compression";
+
+// 型定義
+interface Group { id: string; name: string; }
+interface PriceTier { tierName: string; amount: string; drinks: '別' | '込み' | 'なし'; }
+interface TimeSlot { startAt: string; endAt: string; }
+interface SalePeriod { startAt: string; endAt: string; url: string; }
+
+// フォームの各セクションをコンポーネント化
+const FormSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
+  <div className="p-4 bg-white rounded-lg shadow space-y-4">
+    <h2 className="text-lg font-semibold border-b pb-2 mb-4">{title}</h2>
+    {children}
+  </div>
+);
 
 export default function AddEventAdmin() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState("");
-  const [openTime, setOpenTime] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [venue, setVenue] = useState("");
-  const [priceGeneral, setPriceGeneral] = useState("");
-  const [pricePriority, setPricePriority] = useState("");
-  const [eventImage, setEventImage] = useState<File | null>(null);
-  const [memberImage, setMemberImage] = useState<File | null>(null);
-  const [isNew, setIsNew] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
+  // --- State定義 ---
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState("");
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [venue, setVenue] = useState("");
+  const [openTime, setOpenTime] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [prices, setPrices] = useState<PriceTier[]>([{ tierName: '一般', amount: '', drinks: '別' }]);
+  const [womenOnlyArea, setWomenOnlyArea] = useState<'なし' | 'あり' | '不明'>('不明');
+  const [photoPolicy, setPhotoPolicy] = useState({ still: '不明', video: '不明' });
+  const [ticketSales, setTicketSales] = useState({
+    preSaleFastest: { startAt: '', endAt: '', url: '' },
+    preSaleGeneral: { startAt: '', endAt: '', url: '' },
+    generalSale:    { startAt: '', endAt: '', url: '' },
+  });
+  const [ticketUrl, setTicketUrl] = useState("");
+  const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
+  const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
+  const [attendanceBonus, setAttendanceBonus] = useState("");
+  const [eventImage, setEventImage] = useState<File | null>(null);
+  const [memberImage, setMemberImage] = useState<File | null>(null);
+
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      if (user && ADMIN_UIDS.includes(user.uid)) {
-        setUser(user);
-      } else {
-        router.push("/");
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      try {
+        if (currentUser && ADMIN_UIDS.includes(currentUser.uid)) {
+          setUser(currentUser);
+          const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
+          setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Group[]);
+        } else if (!currentUser) {
+           router.push("/");
+        }
+      } catch (error) {
+        console.error("初期化エラー:", error);
+        alert("データの読み込みに失敗しました。");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => unsubscribe();
   }, [router]);
-
-  const compressAndUpload = async (file: File, path: string): Promise<string> => {
-    const compressed = await imageCompression(file, {
-      maxSizeMB: 0.5,
-      maxWidthOrHeight: 1280,
-    });
-    const fileRef = ref(storage, path);
-    await uploadBytes(fileRef, compressed);
-    return await getDownloadURL(fileRef);
+  
+  const handleArrayChange = (setter: Function, index: number, field: string, value: string) => {
+    setter((prev: any[]) => { const newArr = [...prev]; newArr[index][field] = value; return newArr; });
+  };
+  const addArrayItem = (setter: Function, newItem: object) => setter((prev: any[]) => [...prev, newItem]);
+  const removeArrayItem = (setter: Function, index: number) => setter((prev: any[]) => prev.filter((_, i) => i !== index));
+  const handleTicketSaleChange = (period: keyof typeof ticketSales, field: keyof SalePeriod, value: string) => {
+    setTicketSales(prev => ({ ...prev, [period]: { ...prev[period], [field]: value } }));
+  };
+  const compressAndUpload = async (file: File, path: string) => {
+    const compressed = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1280 });
+    const fileRef = ref(storage, path); await uploadBytes(fileRef, compressed); return getDownloadURL(fileRef);
   };
 
   const handleSubmit = async () => {
-    if (!title || !date) {
-      alert("タイトルと日付は必須です");
-      return;
-    }
+    if (!groupId || !title || !date) return alert("グループ、タイトル、日付は必須です。");
     setIsSubmitting(true);
-
     try {
-      const newEvent: any = {
-        title,
-        date: new Date(date),
-        openTime,
-        startTime,
-        venue,
-        isNew,
-        price: {
-          general: Number(priceGeneral) || 0,
-          priority: Number(pricePriority) || 0
+      const toTimestamp = (dateStr: string) => dateStr ? new Date(dateStr) : null;
+      const newEventData = {
+        groupId, title, date: new Date(date), venue, openTime, startTime,
+        prices: prices.filter(p => p.tierName && p.amount).map(p => ({ ...p, amount: Number(p.amount) })),
+        womenOnlyArea, photoPolicy, ticketUrl,
+        ticketSales: {
+            preSaleFastest: { ...ticketSales.preSaleFastest, startAt: toTimestamp(ticketSales.preSaleFastest.startAt), endAt: toTimestamp(ticketSales.preSaleFastest.endAt) },
+            preSaleGeneral: { ...ticketSales.preSaleGeneral, startAt: toTimestamp(ticketSales.preSaleGeneral.startAt), endAt: toTimestamp(ticketSales.preSaleGeneral.endAt) },
+            generalSale:    { ...ticketSales.generalSale,    startAt: toTimestamp(ticketSales.generalSale.startAt),    endAt: toTimestamp(ticketSales.generalSale.endAt) },
         },
-        participants: [],
-        chekiMemo: {}
+        performanceTimes: performanceTimes.filter(t => t.startAt && t.endAt),
+        bonusEventTimes: bonusEventTimes.filter(t => t.startAt && t.endAt),
+        attendanceBonus, isNew: true, createdAt: serverTimestamp(),
       };
-
-      const docRef = await addDoc(collection(db, "events"), newEvent);
-
+      const docRef = await addDoc(collection(db, "events"), newEventData);
       const eventPhotoUrl = eventImage ? await compressAndUpload(eventImage, `events/${docRef.id}/event.jpg`) : null;
       const memberPhotoUrl = memberImage ? await compressAndUpload(memberImage, `events/${docRef.id}/member.jpg`) : null;
-      
-      await updateDoc(docRef, {
-        ...(eventPhotoUrl && { eventPhotoUrl }),
-        ...(memberPhotoUrl && { memberPhotoUrl })
-      });
-
-      alert("イベントを追加しました！");
-      router.push("/admin/dashboard");
-    } catch (error) {
-      console.error("イベント追加エラー:", error);
-      alert("イベントの追加に失敗しました。");
-    } finally {
-      setIsSubmitting(false);
-    }
+      if (eventPhotoUrl || memberPhotoUrl) {
+          await updateDoc(docRef, { ...(eventPhotoUrl && { eventPhotoUrl }), ...(memberPhotoUrl && { memberPhotoUrl }) });
+      }
+      alert("イベントを追加しました！"); router.push("/admin/dashboard");
+    } catch (error) { console.error("イベント追加エラー:", error); alert("イベントの追加に失敗しました。");
+    } finally { setIsSubmitting(false); }
   };
-  
-  if (loading) {
-    return <div className="p-4 text-center">読み込み中...</div>;
-  }
-  
-  if (!user) {
-    return null;
-  }
+
+  if (loading) return <div className="p-4 text-center">読み込み中...</div>;
+  if (!user) return <div className="p-4 text-center">管理者としてログインしてください。</div>;
 
   return (
-    <div className="p-6 max-w-xl mx-auto space-y-4">
-      <Link href="/admin/dashboard" className="text-sm text-blue-600 underline hover:text-blue-800">
-          ← ダッシュボードに戻る
-      </Link>
-      <h1 className="text-2xl font-bold">イベント追加</h1>
+    <div className="p-6 max-w-3xl mx-auto space-y-6">
+      <div className="flex justify-between items-center"><h1 className="text-2xl font-bold">新規イベント追加</h1><Link href="/admin/dashboard" className="text-sm text-blue-600 underline hover:text-blue-800">← ダッシュボードに戻る</Link></div>
       
-      <div className="space-y-4">
-        <input placeholder="タイトル *" value={title} onChange={e => setTitle(e.target.value)} className="border p-2 w-full rounded" />
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} className="border p-2 w-full rounded" />
-        <input placeholder="開場時間 (例: 18:00)" value={openTime} onChange={e => setOpenTime(e.target.value)} className="border p-2 w-full rounded" />
-        <input placeholder="開演時間 (例: 18:30)" value={startTime} onChange={e => setStartTime(e.target.value)} className="border p-2 w-full rounded" />
-        <input placeholder="会場" value={venue} onChange={e => setVenue(e.target.value)} className="border p-2 w-full rounded" />
-        <input type="number" placeholder="一般料金" value={priceGeneral} onChange={e => setPriceGeneral(e.target.value)} className="border p-2 w-full rounded" />
-        <input type="number" placeholder="優先料金" value={pricePriority} onChange={e => setPricePriority(e.target.value)} className="border p-2 w-full rounded" />
-
+      <FormSection title="基本情報">
         <div>
-          <label className="block text-sm font-medium text-gray-700">イベント写真</label>
-          <input type="file" accept="image/*" onChange={e => setEventImage(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm" />
+          <label className="block text-sm font-medium text-gray-700">グループ*</label>
+          <select value={groupId} onChange={e => setGroupId(e.target.value)} className="mt-1 w-full border p-2 rounded-md bg-white">
+            <option value="">-- グループを選択 --</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">メンバー写真</label>
-          <input type="file" accept="image/*" onChange={e => setMemberImage(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm" />
+          <label className="block text-sm font-medium text-gray-700">イベント名*</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
         </div>
-
         <div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={isNew} onChange={e => setIsNew(e.target.checked)} className="h-4 w-4 rounded"/>
-            新着としてマークする
-          </label>
+          <label className="block text-sm font-medium text-gray-700">開催日*</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">会場</label>
+          <input value={venue} onChange={e => setVenue(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-sm font-medium text-gray-700">開場時間</label><input type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div>
+          <div><label className="block text-sm font-medium text-gray-700">開演時間</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div>
+        </div>
+      </FormSection>
+      
+      <FormSection title="料金設定">
+        {prices.map((price, index) => (
+          <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end p-2 border rounded">
+            <input value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般)" className="border p-2 rounded"/>
+            <input value={price.amount} onChange={e => handleArrayChange(setPrices, index, 'amount', e.target.value)} placeholder="金額" type="number" className="border p-2 rounded"/>
+            <select value={price.drinks} onChange={e => handleArrayChange(setPrices, index, 'drinks', e.target.value as any)} className="border p-2 rounded bg-white">
+              <option value="別">D代別</option><option value="込み">D代込</option><option value="なし">D代なし</option>
+            </select>
+            <button onClick={() => removeArrayItem(setPrices, index)} className="px-3 py-2 bg-red-500 text-white rounded text-sm">削除</button>
+          </div>
+        ))}
+        <button onClick={() => addArrayItem(setPrices, { tierName: '', amount: '', drinks: '別' })} className="text-sm font-medium text-blue-600 hover:underline">+ 料金種別を追加</button>
+      </FormSection>
 
-        <button onClick={handleSubmit} disabled={isSubmitting} className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-blue-300">
-          {isSubmitting ? '処理中...' : 'イベントを追加'}
-        </button>
-      </div>
+      <FormSection title="チケット販売期間">
+        {Object.entries({preSaleFastest: '最速先行', preSaleGeneral: '先行販売', generalSale: '一般販売'}).map(([key, label]) => (
+            <div key={key} className="p-2 border rounded space-y-2">
+                <p className="text-sm font-bold text-gray-600">{label}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div><label className="text-xs text-gray-500">開始日</label><input type="date" value={ticketSales[key as keyof typeof ticketSales].startAt} onChange={e => handleTicketSaleChange(key as any, 'startAt', e.target.value)} className="w-full border p-2 rounded"/></div>
+                    <div><label className="text-xs text-gray-500">終了日</label><input type="date" value={ticketSales[key as keyof typeof ticketSales].endAt} onChange={e => handleTicketSaleChange(key as any, 'endAt', e.target.value)} className="w-full border p-2 rounded"/></div>
+                </div>
+                <input value={ticketSales[key as keyof typeof ticketSales].url} onChange={e => handleTicketSaleChange(key as any, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/>
+            </div>
+        ))}
+      </FormSection>
+
+      <FormSection title="出演・特典会時間">
+        <p className="text-sm font-medium text-gray-700 mb-2">出演時間</p>
+        {performanceTimes.map((time, index) => (
+          <div key={index} className="flex items-center gap-2">
+             <input type="time" value={time.startAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
+             <span className="text-gray-500">〜</span>
+             <input type="time" value={time.endAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
+             <button onClick={() => removeArrayItem(setPerformanceTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+          </div>
+        ))}
+        <button onClick={() => addArrayItem(setPerformanceTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 出演時間を追加</button>
+        <hr className="my-4"/>
+        <p className="text-sm font-medium text-gray-700 mb-2">特典会時間</p>
+        {bonusEventTimes.map((time, index) => (
+          <div key={index} className="flex items-center gap-2">
+             <input type="time" value={time.startAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
+             <span className="text-gray-500">〜</span>
+             <input type="time" value={time.endAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
+             <button onClick={() => removeArrayItem(setBonusEventTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+          </div>
+        ))}
+        <button onClick={() => addArrayItem(setBonusEventTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 特典会時間を追加</button>
+      </FormSection>
+
+      <FormSection title="詳細情報">
+        <div><label className="block text-sm font-medium text-gray-700">チケット購入URL (その他)</label><input value={ticketUrl} onChange={e => setTicketUrl(e.target.value)} className="mt-1 w-full border p-2 rounded-md" placeholder="https://..."/></div>
+        <div><label className="block text-sm font-medium text-gray-700">女性限定エリア</label><select value={womenOnlyArea} onChange={e => setWomenOnlyArea(e.target.value as any)} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="あり">あり</option><option value="なし">なし</option></select></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="block text-sm font-medium text-gray-700">静止画撮影</label><select value={photoPolicy.still} onChange={e => setPhotoPolicy({...photoPolicy, still: e.target.value})} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="OK">OK</option><option value="NG">NG</option></select></div>
+          <div><label className="block text-sm font-medium text-gray-700">動画撮影</label><select value={photoPolicy.video} onChange={e => setPhotoPolicy({...photoPolicy, video: e.target.value})} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="OK">OK</option><option value="NG">NG</option></select></div>
+        </div>
+        <div><label className="block text-sm font-medium text-gray-700">来場特典</label><textarea value={attendanceBonus} onChange={e => setAttendanceBonus(e.target.value)} className="mt-1 w-full border p-2 rounded-md" rows={3}></textarea></div>
+      </FormSection>
+      
+      <FormSection title="画像情報">
+        <div><label className="block text-sm font-medium text-gray-700">イベント写真</label><input type="file" accept="image/*" onChange={e => setEventImage(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm"/></div>
+        <div><label className="block text-sm font-medium text-gray-700">メンバー写真</label><input type="file" accept="image/*" onChange={e => setMemberImage(e.target.files?.[0] || null)} className="mt-1 block w-full text-sm"/></div>
+      </FormSection>
+
+      <button onClick={handleSubmit} disabled={isSubmitting} className="w-full mt-6 px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors">{isSubmitting ? '保存中...' : 'この内容でイベントを追加する'}</button>
     </div>
   );
 }

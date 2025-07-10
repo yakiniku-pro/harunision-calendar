@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, where, Timestamp, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format, addDays, startOfWeek, isToday } from "date-fns";
+import { format, addDays, startOfWeek, isToday, endOfDay, getDay } from "date-fns";
+import { ja } from "date-fns/locale";
 import Image from "next/image";
 import { useRouter } from "next/router";
 
@@ -12,27 +13,33 @@ interface EventData {
   eventPhotoUrl?: string;
 }
 
-export default function WeeklyCalendar() {
-  // 日本の週の始まり（日曜日）に設定
+// 祝日リスト (YYYY-MM-DD形式)
+const holidays = new Set([
+  '2025-01-01', '2025-01-13', '2025-02-11', '2025-02-24', '2025-03-20',
+  '2025-04-29', '2025-05-03', '2025-05-05', '2025-05-06', '2025-07-21',
+  '2025-08-11', '2025-09-15', '2025-09-23', '2025-10-13', '2025-11-03', '2025-11-24',
+]);
+
+export default function WeeklyCalendar({ groupId }: { groupId: string | null }) {
   const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
   const [events, setEvents] = useState<EventData[]>([]);
   const router = useRouter();
 
   useEffect(() => {
     const fetchEvents = async () => {
-      const endDate = addDays(startDate, 6);
-      const q = query(
-        collection(db, "events"),
-        where("date", ">=", Timestamp.fromDate(startDate)),
-        where("date", "<=", Timestamp.fromDate(endDate)),
-        orderBy("date", "asc") // 日付順にソート
-      );
+      const endDate = endOfDay(addDays(startDate, 6)); 
+      const eventsRef = collection(db, "events");
+
+      const q = groupId
+        ? query(eventsRef, where("groupId", "==", groupId), where("date", ">=", Timestamp.fromDate(startDate)), where("date", "<=", Timestamp.fromDate(endDate)), orderBy("date", "asc"))
+        : query(eventsRef, where("date", ">=", Timestamp.fromDate(startDate)), where("date", "<=", Timestamp.fromDate(endDate)), orderBy("date", "asc"));
+      
       const snap = await getDocs(q);
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as EventData[];
       setEvents(data);
     };
     fetchEvents();
-  }, [startDate]);
+  }, [startDate, groupId]);
 
   const handleWeekChange = (offset: number) => {
     setStartDate(prev => addDays(prev, offset * 7));
@@ -44,7 +51,6 @@ export default function WeeklyCalendar() {
   };
 
   return (
-    // <main>タグを<div>に変更
     <div className="w-full">
       <div className="flex justify-between items-center mb-4">
         <button onClick={() => handleWeekChange(-1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors">前週</button>
@@ -54,17 +60,34 @@ export default function WeeklyCalendar() {
         <button onClick={() => handleWeekChange(1)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 transition-colors">次週</button>
       </div>
 
-      {/* レスポンシブ対応：スマホでは縦(grid-cols-1)、PC(md以上)では7列(grid-cols-7) */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
         {Array.from({ length: 7 }).map((_, i) => {
           const date = addDays(startDate, i);
           const dayEvents = eventsForDay(date);
           const isTodayFlag = isToday(date);
+          
+          const dayOfWeek = getDay(date); // 0:日曜, 6:土曜
+          const isHoliday = holidays.has(format(date, 'yyyy-MM-dd'));
+          
+          let dayClasses = 'border rounded-lg p-3 space-y-2';
+          let dayTextClasses = 'font-semibold';
+
+          if (isTodayFlag) dayClasses += ' bg-sky-50';
+          if (dayOfWeek === 0 || isHoliday) {
+            dayClasses += ' border-red-200';
+            dayTextClasses += ' text-red-600';
+          } else if (dayOfWeek === 6) {
+            dayClasses += ' border-blue-200';
+            dayTextClasses += ' text-blue-600';
+          } else {
+            dayClasses += ' bg-white';
+            dayTextClasses += ' text-gray-700';
+          }
 
           return (
-            <div key={i} className={`border rounded-lg p-3 space-y-2 ${isTodayFlag ? 'bg-blue-50 border-blue-300' : 'bg-white'}`}>
-              <h3 className={`font-semibold ${isTodayFlag ? 'text-blue-600' : 'text-gray-700'}`}>
-                {format(date, "M/d (E)")}
+            <div key={i} className={dayClasses}>
+              <h3 className={dayTextClasses}>
+                {format(date, "M/d (E)", { locale: ja })}
               </h3>
               {dayEvents.length === 0 ? (
                 <p className="text-xs text-gray-400">予定なし</p>
