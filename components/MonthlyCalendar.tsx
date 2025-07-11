@@ -5,6 +5,7 @@ import { ja } from 'date-fns/locale';
 import { collection, query, where, getDocs, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
+import { useCalendar } from '@/contexts/CalendarContext';
 
 interface Event {
   id: string;
@@ -12,7 +13,6 @@ interface Event {
   date: Timestamp;
 }
 
-// 祝日リスト (YYYY-MM-DD形式) - weeklyと共通
 const holidays = new Set([
   '2025-01-01', '2025-01-13', '2025-02-11', '2025-02-24', '2025-03-20',
   '2025-04-29', '2025-05-03', '2025-05-05', '2025-05-06', '2025-07-21',
@@ -20,7 +20,7 @@ const holidays = new Set([
 ]);
 
 export default function MonthlyCalendar({ groupId }: { groupId: string | null }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { displayDate, setDisplayDate } = useCalendar();
   const [events, setEvents] = useState<Event[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [participationStatus, setParticipationStatus] = useState<{ [eventId: string]: boolean }>({});
@@ -35,8 +35,8 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
 
   useEffect(() => {
     const fetchEventsAndParticipation = async () => {
-      const firstDay = startOfMonth(currentMonth);
-      const lastDay = endOfMonth(currentMonth);
+      const firstDay = startOfMonth(displayDate);
+      const lastDay = endOfMonth(displayDate);
       
       const eventsRef = collection(db, "events");
       const q = groupId 
@@ -65,14 +65,13 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
     };
 
     fetchEventsAndParticipation();
-  }, [currentMonth, groupId, user]);
+  }, [displayDate, groupId, user]);
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-  const startingDayIndex = getDay(startOfMonth(currentMonth));
+  const days = eachDayOfInterval({ start: startOfMonth(displayDate), end: endOfMonth(displayDate) });
+  const startingDayIndex = getDay(startOfMonth(displayDate));
 
-  // ★ エラー修正：引数に型を指定
-  const prevMonth = () => setCurrentMonth((prev: Date) => subMonths(prev, 1));
-  const nextMonth = () => setCurrentMonth((prev: Date) => addMonths(prev, 1));
+  const prevMonth = () => setDisplayDate(prev => subMonths(prev, 1));
+  const nextMonth = () => setDisplayDate(prev => addMonths(prev, 1));
 
   return (
     <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6">
@@ -80,7 +79,7 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
         <button onClick={prevMonth} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <h2 className="text-xl font-bold text-gray-800">{format(currentMonth, 'yyyy年 MMMM', { locale: ja })}</h2>
+        <h2 className="text-xl font-bold text-gray-800">{format(displayDate, 'yyyy年 MMMM', { locale: ja })}</h2>
         <button onClick={nextMonth} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </button>

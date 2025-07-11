@@ -1,9 +1,9 @@
 import { createContext, useState, useContext, ReactNode, useMemo } from 'react';
 
-// ★ activeView（月間/週間）の状態も管理するように拡張
 interface CalendarContextType {
   displayDate: Date;
-  setDisplayDate: (date: Date) => void;
+  // ★ setDisplayDateの型を修正
+  setDisplayDate: React.Dispatch<React.SetStateAction<Date>>;
   activeView: 'month' | 'week';
   setActiveView: (view: 'month' | 'week') => void;
 }
@@ -12,7 +12,7 @@ const CalendarContext = createContext<CalendarContextType | undefined>(undefined
 
 export const CalendarProvider = ({ children }: { children: ReactNode }) => {
   const [displayDate, setDisplayDate] = useState(new Date());
-  const [activeView, setActiveView] = useState<'month' | 'week'>('month'); // デフォルトは月間表示
+  const [activeView, setActiveView] = useState<'month' | 'week'>('month');
 
   const value = useMemo(() => ({
     displayDate,
