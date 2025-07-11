@@ -70,8 +70,8 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
   const days = eachDayOfInterval({ start: startOfMonth(displayDate), end: endOfMonth(displayDate) });
   const startingDayIndex = getDay(startOfMonth(displayDate));
 
-  const prevMonth = () => setDisplayDate(prev => subMonths(prev, 1));
-  const nextMonth = () => setDisplayDate(prev => addMonths(prev, 1));
+  const prevMonth = () => setDisplayDate((prev: Date) => subMonths(prev, 1));
+  const nextMonth = () => setDisplayDate((prev: Date) => addMonths(prev, 1));
 
   return (
     <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6">
@@ -127,10 +127,11 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
               </time>
               <div className="flex-grow space-y-1 mt-1 overflow-y-auto">
                 {dayEvents.map(event => (
-                  <div key={event.id} onClick={() => router.push(`/event/${event.id}`)} className="bg-white/80 text-gray-800 text-xs rounded px-1.5 py-1 cursor-pointer hover:shadow-md hover:scale-105 transition-all flex items-center gap-1">
-                    {participationStatus[event.id] && <span className="text-pink-500 text-lg leading-none">♥</span>}
-                    {/* ★ 変更点：truncateを削除し、折り返しを許可 */}
-                    <span className="flex-1 whitespace-normal break-all">{event.title}</span>
+                  <div key={event.id} onClick={() => router.push(`/event/${event.id}`)} className="text-xs rounded cursor-pointer hover:bg-black/10 -mx-1 px-1 py-0.5">
+                    <div className="flex items-center gap-1">
+                      {participationStatus[event.id] && <span className="text-pink-500 text-base leading-none">♥</span>}
+                      <span className="flex-1 truncate font-medium text-gray-700">{event.title}</span>
+                    </div>
                   </div>
                 ))}
               </div>
