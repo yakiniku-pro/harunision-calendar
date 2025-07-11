@@ -134,6 +134,7 @@ function SummaryView({ user }: { user: User }) {
     calculateStats();
   }, [user, selectedGroupId]);
 
+  // ★ エラー修正：useMemoがundefinedを返した場合のフォールバックを追加
   const { totalChekiStats, activeMembers } = useMemo(() => {
     const totalChekis: { [personId: string]: number } = {};
     const memberSet = new Set<string>();
@@ -150,7 +151,7 @@ function SummaryView({ user }: { user: User }) {
         return { personId, name: person?.primaryName || '不明', color: person?.color || '#ccc', count };
       }).sort((a, b) => b.count - a.count);
     return { totalChekiStats: sortedTotalChekis, activeMembers };
-  }, [monthlyStats, allPersons]);
+  }, [monthlyStats, allPersons]) || { totalChekiStats: [], activeMembers: [] }; // ★ ここにフォールバックを追加
 
   const sortedMonths = Object.keys(monthlyStats).sort();
   const chartData = {
