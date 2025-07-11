@@ -6,7 +6,7 @@ import { ja } from "date-fns/locale";
 import Image from "next/image";
 import { useRouter } from "next/router";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { useCalendar } from "@/contexts/CalendarContext"; // ★ 共有Contextをインポート
+import { useCalendar } from "@/contexts/CalendarContext";
 
 interface EventData {
   id: string;
@@ -22,7 +22,6 @@ const holidays = new Set([
 ]);
 
 export default function WeeklyCalendar({ groupId }: { groupId: string | null }) {
-  // ★ ローカルのstartDateを廃止し、共有のdisplayDateを使用
   const { displayDate, setDisplayDate } = useCalendar();
   const startDate = startOfWeek(displayDate, { weekStartsOn: 0 });
 
@@ -65,9 +64,9 @@ export default function WeeklyCalendar({ groupId }: { groupId: string | null }) 
     fetchEventsAndParticipation();
   }, [startDate, groupId, user]);
 
-  // ★ 週移動の際に、共有のdisplayDateを更新する
   const handleWeekChange = (offset: number) => {
-    setDisplayDate(prev => addDays(prev, offset * 7));
+    // ★ エラー修正：引数に型を指定
+    setDisplayDate((prev: Date) => addDays(prev, offset * 7));
   };
 
   const eventsForDay = (date: Date) => {
