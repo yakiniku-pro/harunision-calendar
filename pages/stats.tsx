@@ -24,6 +24,30 @@ interface OshiHighlightStats {
   monthlyChekis: { [month: string]: number };
 }
 
+// --- ヘルパー関数: 16進数カラーコードをRGBに変換 ---
+const hexToRgb = (hex: string) => {
+  const cleanHex = hex.startsWith('#') ? hex.substring(1) : hex;
+  let r = 0, g = 0, b = 0;
+  if (cleanHex.length === 3) {
+    r = parseInt(cleanHex[0] + cleanHex[0], 16);
+    g = parseInt(cleanHex[1] + cleanHex[1], 16);
+    b = parseInt(cleanHex[2] + cleanHex[2], 16);
+  } else if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.substring(0, 2), 16);
+    g = parseInt(cleanHex.substring(2, 4), 16);
+    b = parseInt(cleanHex.substring(4, 6), 16);
+  }
+  return { r, g, b };
+};
+
+// --- ヘルパー関数: 16進数カラーコードを半透明のRGBAに変換 ---
+const getFadedColor = (hexColor: string, alpha: number = 0.2) => {
+  if (!hexColor || (hexColor.length !== 7 && hexColor.length !== 4)) return 'transparent';
+  const { r, g, b } = hexToRgb(hexColor);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+
 // --- メインコンポーネント ---
 export default function StatsPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -134,7 +158,6 @@ function SummaryView({ user }: { user: User }) {
     calculateStats();
   }, [user, selectedGroupId]);
 
-  // ★ エラー修正：useMemoがundefinedを返した場合のフォールバックを追加
   const { totalChekiStats, activeMembers } = useMemo(() => {
     const totalChekis: { [personId: string]: number } = {};
     const memberSet = new Set<string>();
@@ -151,7 +174,7 @@ function SummaryView({ user }: { user: User }) {
         return { personId, name: person?.primaryName || '不明', color: person?.color || '#ccc', count };
       }).sort((a, b) => b.count - a.count);
     return { totalChekiStats: sortedTotalChekis, activeMembers };
-  }, [monthlyStats, allPersons]) || { totalChekiStats: [], activeMembers: [] }; // ★ ここにフォールバックを追加
+  }, [monthlyStats, allPersons]) || { totalChekiStats: [], activeMembers: [] };
 
   const sortedMonths = Object.keys(monthlyStats).sort();
   const chartData = {
@@ -289,9 +312,29 @@ function HighlightView({ user }: { user: User }) {
       </div>
       {selectedOshiData && selectedOshiInfo && oshiChartData && (
         <div className="p-6 bg-white/80 backdrop-blur-sm border-2 rounded-2xl shadow-lg" style={{ borderColor: selectedOshiInfo.color || '#ccc' }}>
-          <div className="text-center mb-4">
-            <p className="text-sm" style={{ color: selectedOshiInfo.color || '#6b7280' }}>あなたの推し活ハイライト</p>
-            <h3 className="text-3xl font-bold" style={{ color: selectedOshiInfo.color || '#1f2937' }}>{selectedOshiInfo.primaryName}</h3>
+          <div 
+            className="text-center mb-4 p-2 rounded-lg" 
+            // 背景色をメンバーカラーの半透明バージョンに設定
+            style={{ 
+              backgroundColor: getFadedColor(selectedOshiInfo.color || '#ccc', 0.25) // 不透明度を少し上げて調整
+            }}
+          >
+            <p 
+              className="text-sm" 
+              style={{ 
+                color: '#1a202c' // すべての文字色を濃い色に固定
+              }}
+            >
+              あなたの推し活ハイライト
+            </p>
+            <h3 
+              className="text-3xl font-bold" 
+              style={{ 
+                color: '#1a202c' // すべての文字色を濃い色に固定
+              }}
+            >
+              {selectedOshiInfo.primaryName}
+            </h3>
           </div>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div><p className="text-xs text-gray-500">累計チェキ枚数</p><p className="text-2xl font-bold">{selectedOshiData.totalChekis}<span className="text-sm font-normal ml-1">枚</span></p></div>
