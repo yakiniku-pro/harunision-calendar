@@ -41,14 +41,15 @@ export default function NewCalendarPage() {
               <GroupSelector />
             </SidebarCard>
             <SidebarCard>
-              <div className="space-y-3">
-                <Link href="/stats" className="group flex items-center justify-center w-full text-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all">
-                  <span className="text-xl mr-2">📊</span>
-                  統計ページへ
+              {/* ★ ボタンのレイアウトと文言を修正 */}
+              <div className="grid grid-cols-2 gap-2">
+                <Link href="/stats" className="group flex items-center justify-center text-center px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all">
+                  <span className="mr-1">📊</span>
+                  統計情報
                 </Link>
-                <Link href="/deadlines" className="group flex items-center justify-center w-full text-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all">
-                  <span className="text-xl mr-2">🎟️</span>
-                  予約締切一覧
+                <Link href="/deadlines" className="group flex items-center justify-center text-center px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all">
+                  <span className="mr-1">🎟️</span>
+                  締切一覧
                 </Link>
               </div>
             </SidebarCard>

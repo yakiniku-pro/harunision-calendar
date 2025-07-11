@@ -141,7 +141,7 @@ export default function DeadlinesPage() {
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl md:text-3xl font-bold text-pink-500">🎟️ チケット予約締切一覧</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-pink-500">🎟️ 予約締切一覧</h1>
           <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-pink-500 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             カレンダーに戻る
