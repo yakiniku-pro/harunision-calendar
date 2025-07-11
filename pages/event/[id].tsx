@@ -131,7 +131,7 @@ export default function EventDetailPage() {
       const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
       await setDoc(userRecordRef, { chekiMemo }, { merge: true });
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 1000);
+      setTimeout(() => setSaveStatus('idle'), 700);
     } catch (error) {
       console.error("チェキ枚数の保存に失敗しました:", error);
       alert("保存に失敗しました。");
@@ -294,7 +294,8 @@ export default function EventDetailPage() {
           
           {user && (
             <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-2">
+              {/* ★ レイアウトを修正 */}
+              <div className="grid grid-cols-1 gap-y-4">
                 {activeMembers.map(person => {
                   const currentCount = chekiMemo[person.id] || 0;
                   const isMinusDisabled = currentCount === 0;
@@ -305,7 +306,6 @@ export default function EventDetailPage() {
                         <span className="w-24 font-medium truncate">{person.primaryName}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {/* ★★★ スプリット・ボタンUI (無効化対応版) ★★★ */}
                         <div className={`flex rounded-md shadow-sm ${isMinusDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                           <button onClick={() => adjust(person.id, -1)} disabled={isMinusDisabled} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-l-md font-semibold disabled:bg-gray-200 disabled:text-gray-400">-1</button>
                           <button onClick={() => adjust(person.id, -0.5)} disabled={isMinusDisabled} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 border-l border-gray-400 text-white text-xs disabled:bg-gray-100 disabled:text-gray-400">-0.5</button>
