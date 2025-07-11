@@ -128,9 +128,12 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
               <div className="flex-grow space-y-1 mt-1 overflow-y-auto">
                 {dayEvents.map(event => (
                   <div key={event.id} onClick={() => router.push(`/event/${event.id}`)} className="text-xs rounded cursor-pointer hover:bg-black/10 -mx-1 px-1 py-0.5">
-                    <div className="flex items-center gap-1">
-                      {participationStatus[event.id] && <span className="text-pink-500 text-base leading-none">♥</span>}
-                      <span className="flex-1 truncate font-medium text-gray-700">{event.title}</span>
+                    <div className="flex items-start gap-1">
+                      {participationStatus[event.id] && <span className="text-pink-500 text-base leading-none pt-px">♥</span>}
+                      {/* ★ 変更点：2行分の高さを確保し、はみ出たテキストは非表示にする */}
+                      <span className="flex-1 font-medium text-gray-700 h-8 leading-4 overflow-hidden">
+                        {event.title}
+                      </span>
                     </div>
                   </div>
                 ))}
