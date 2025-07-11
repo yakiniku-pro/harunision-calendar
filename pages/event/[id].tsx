@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ADMIN_UIDS } from "@/lib/config";
-import { format, isWithinInterval } from "date-fns";
+import { format, isWithinInterval, isPast, parse } from "date-fns";
 import { ja } from "date-fns/locale";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +19,7 @@ interface EventData {
   attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
   groupId: string;
 }
-interface Person { id: string; primaryName: string; color?: string; }
+interface Person { id: string; primaryName:string; color?: string; }
 interface Membership { personId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; groupId: string; }
 
 // セクション表示用コンポーネント
@@ -39,6 +39,8 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  const [participated, setParticipated] = useState(false);
   const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
   const [activeMembers, setActiveMembers] = useState<Person[]>([]);
   
@@ -54,7 +56,8 @@ export default function EventDetailPage() {
         const eventSnap = await getDoc(eventRef);
 
         if (!eventSnap.exists()) {
-          setLoading(false); return;
+          setEvent(null);
+          return;
         }
         const eventData = eventSnap.data() as EventData;
         setEvent(eventData);
@@ -76,6 +79,8 @@ export default function EventDetailPage() {
           const personsQuery = query(collection(db, "persons"), where("__name__", "in", activePersonIds));
           const personsSnap = await getDocs(personsQuery);
           setActiveMembers(personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[]);
+        } else {
+          setActiveMembers([]);
         }
       } catch (error) {
         console.error("イベントデータの取得に失敗しました:", error);
@@ -92,17 +97,30 @@ export default function EventDetailPage() {
         const userRecordRef = doc(db, "events", id, "userRecords", currentUser.uid);
         const userRecordSnap = await getDoc(userRecordRef);
         if (userRecordSnap.exists()) {
-          setChekiMemo(userRecordSnap.data().chekiMemo || {});
+          const data = userRecordSnap.data();
+          setParticipated(data.participated || false);
+          setChekiMemo(data.chekiMemo || {});
         } else {
+          setParticipated(false);
           setChekiMemo({});
         }
       } else {
+        setParticipated(false);
         setChekiMemo({});
       }
     });
 
     return () => unsubscribe();
   }, [id]);
+  
+  const toggleParticipation = async () => {
+    if (!user || typeof id !== 'string') return;
+    const newStatus = !participated;
+    setParticipated(newStatus);
+    const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
+    await setDoc(userRecordRef, { participated: newStatus }, { merge: true });
+    alert(newStatus ? "イベントに参加登録しました。" : "参加を取り消しました。");
+  };
 
   const updateCheki = async () => {
     if (!user || typeof id !== 'string') return;
@@ -118,6 +136,28 @@ export default function EventDetailPage() {
     }));
   };
 
+  const getEventEndTime = () => {
+    if (!event) return new Date();
+    const dateStr = format(event.date.toDate(), 'yyyy-MM-dd');
+    const lastBonusTime = event.bonusEventTimes?.[event.bonusEventTimes.length - 1]?.endAt;
+    const lastPerfTime = event.performanceTimes?.[event.performanceTimes.length - 1]?.endAt;
+    const endTimeStr = lastBonusTime || lastPerfTime || event.startTime || "23:59";
+    try {
+        return parse(`${dateStr} ${endTimeStr}`, 'yyyy-MM-dd HH:mm', new Date());
+    } catch {
+        return new Date(); // パース失敗時のフォールバック
+    }
+  };
+
+  const eventHasEnded = isPast(getEventEndTime());
+  const participationStatus = participated ? (eventHasEnded ? "参加済み" : "参加予定") : "不参加";
+  
+  const statusStyles = {
+    "参加済み": "bg-green-100 text-green-800",
+    "参加予定": "bg-blue-100 text-blue-800",
+    "不参加": "bg-gray-100 text-gray-800",
+  };
+
   if (loading) return (
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
       <div className="text-center text-gray-500">読み込み中...</div>
@@ -125,7 +165,15 @@ export default function EventDetailPage() {
   );
   if (!event) return (
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
-      <div className="text-center text-red-500">イベントが見つかりませんでした。</div>
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-pink-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          カレンダーに戻る
+        </Link>
+        <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6 text-center text-red-500">
+          イベントが見つかりませんでした。
+        </div>
+      </div>
     </main>
   );
 
@@ -144,6 +192,26 @@ export default function EventDetailPage() {
               </Link>
             </div>
           )}
+          
+          {user && (
+            <div className="mb-4 p-3 flex justify-between items-center bg-white/50 rounded-lg">
+              <div>
+                <span className="text-xs text-gray-500">あなたの参加状況</span>
+                <p className={`px-2 py-0.5 inline-block text-sm font-bold rounded-full ${statusStyles[participationStatus]}`}>
+                  {participationStatus}
+                </p>
+              </div>
+              <button
+                onClick={toggleParticipation}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                  participated ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-400 text-white hover:bg-pink-500'
+                }`}
+              >
+                {participated ? '参加を取り消す' : '参加する'}
+              </button>
+            </div>
+          )}
+
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
           <p className="text-md text-gray-500 mt-1">{format(event.date.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}</p>
 

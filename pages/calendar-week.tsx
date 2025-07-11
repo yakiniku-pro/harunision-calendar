@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where, Timestamp, orderBy } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { collection, getDocs, query, where, Timestamp, orderBy, doc, getDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
 import { format, addDays, startOfWeek, isToday, endOfDay, getDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import Image from "next/image";
 import { useRouter } from "next/router";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { useCalendar } from "@/contexts/CalendarContext"; // ★ 共有Contextをインポート
 
 interface EventData {
   id: string;
@@ -20,26 +22,52 @@ const holidays = new Set([
 ]);
 
 export default function WeeklyCalendar({ groupId }: { groupId: string | null }) {
-  const [startDate, setStartDate] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  // ★ ローカルのstartDateを廃止し、共有のdisplayDateを使用
+  const { displayDate, setDisplayDate } = useCalendar();
+  const startDate = startOfWeek(displayDate, { weekStartsOn: 0 });
+
   const [events, setEvents] = useState<EventData[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [participationStatus, setParticipationStatus] = useState<{ [eventId: string]: boolean }>({});
   const router = useRouter();
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const fetchEventsAndParticipation = async () => {
       const endDate = endOfDay(addDays(startDate, 6));
       const eventsRef = collection(db, "events");
       const q = groupId
         ? query(eventsRef, where("groupId", "==", groupId), where("date", ">=", Timestamp.fromDate(startDate)), where("date", "<=", Timestamp.fromDate(endDate)), orderBy("date", "asc"))
         : query(eventsRef, where("date", ">=", Timestamp.fromDate(startDate)), where("date", "<=", Timestamp.fromDate(endDate)), orderBy("date", "asc"));
+      
       const snap = await getDocs(q);
       const data = snap.docs.map(d => ({ id: d.id, ...d.data() })) as EventData[];
       setEvents(data);
-    };
-    fetchEvents();
-  }, [startDate, groupId]);
 
+      if (user && data.length > 0) {
+        const newStatus: { [eventId: string]: boolean } = {};
+        const recordPromises = data.map(event => getDoc(doc(db, "events", event.id, "userRecords", user.uid)));
+        const recordSnapshots = await Promise.all(recordPromises);
+        recordSnapshots.forEach((snap, index) => {
+          if (snap.exists() && snap.data().participated) {
+            newStatus[data[index].id] = true;
+          }
+        });
+        setParticipationStatus(newStatus);
+      } else {
+        setParticipationStatus({});
+      }
+    };
+    fetchEventsAndParticipation();
+  }, [startDate, groupId, user]);
+
+  // ★ 週移動の際に、共有のdisplayDateを更新する
   const handleWeekChange = (offset: number) => {
-    setStartDate(prev => addDays(prev, offset * 7));
+    setDisplayDate(prev => addDays(prev, offset * 7));
   };
 
   const eventsForDay = (date: Date) => {
@@ -79,7 +107,6 @@ export default function WeeklyCalendar({ groupId }: { groupId: string | null }) 
           } else {
             dayClasses += ' bg-white/60'; dayTextClasses += ' text-gray-700';
           }
-          // 「今日」のスタイルは最優先で上書き
           if (isTodayFlag) {
             dayClasses = 'rounded-lg p-3 space-y-2 min-h-[140px] transition-colors bg-amber-100/90 ring-2 ring-amber-300';
             dayTextClasses = 'font-bold text-amber-700';
@@ -98,7 +125,10 @@ export default function WeeklyCalendar({ groupId }: { groupId: string | null }) 
                     {ev.eventPhotoUrl && (
                       <Image src={ev.eventPhotoUrl} alt={ev.title} width={240} height={135} className="rounded mb-1 w-full object-cover"/>
                     )}
-                    <p className="text-xs font-semibold text-gray-800 truncate">{ev.title}</p>
+                    <div className="flex items-center gap-1.5">
+                      {participationStatus[ev.id] && <span className="text-pink-500 text-lg leading-none">♥</span>}
+                      <p className="text-xs font-semibold text-gray-800 truncate">{ev.title}</p>
+                    </div>
                   </div>
                 ))
               )}

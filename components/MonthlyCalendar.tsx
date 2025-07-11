@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths, isToday } from 'date-fns';
 import { ja } from 'date-fns/locale';
-import { collection, query, where, getDocs, Timestamp, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, Timestamp, orderBy, doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { useCalendar } from '@/contexts/CalendarContext';
 
 interface Event {
   id: string;
@@ -18,14 +20,21 @@ const holidays = new Set([
 ]);
 
 export default function MonthlyCalendar({ groupId }: { groupId: string | null }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const { displayDate, setDisplayDate } = useCalendar();
   const [events, setEvents] = useState<Event[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [participationStatus, setParticipationStatus] = useState<{ [eventId: string]: boolean }>({});
   const router = useRouter();
 
   useEffect(() => {
-    const fetchEventsForMonth = async () => {
-      const firstDay = startOfMonth(currentMonth);
-      const lastDay = endOfMonth(currentMonth);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => setUser(currentUser));
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const fetchEventsAndParticipation = async () => {
+      const firstDay = startOfMonth(displayDate);
+      const lastDay = endOfMonth(displayDate);
       
       const eventsRef = collection(db, "events");
       const q = groupId 
@@ -33,20 +42,34 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
         : query(eventsRef, where("date", ">=", firstDay), where("date", "<=", lastDay), orderBy("date"));
         
       const snapshot = await getDocs(q);
-      const fetchedEvents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Event[];
+      const fetchedEvents = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Event[];
       setEvents(fetchedEvents);
+
+      if (user && fetchedEvents.length > 0) {
+        const newStatus: { [eventId: string]: boolean } = {};
+        const recordPromises = fetchedEvents.map(event => 
+          getDoc(doc(db, "events", event.id, "userRecords", user.uid))
+        );
+        const recordSnapshots = await Promise.all(recordPromises);
+        recordSnapshots.forEach((snap, index) => {
+          if (snap.exists() && snap.data().participated) {
+            newStatus[fetchedEvents[index].id] = true;
+          }
+        });
+        setParticipationStatus(newStatus);
+      } else {
+        setParticipationStatus({});
+      }
     };
-    fetchEventsForMonth();
-  }, [currentMonth, groupId]);
 
-  const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
-  const startingDayIndex = getDay(startOfMonth(currentMonth));
+    fetchEventsAndParticipation();
+  }, [displayDate, groupId, user]);
 
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const days = eachDayOfInterval({ start: startOfMonth(displayDate), end: endOfMonth(displayDate) });
+  const startingDayIndex = getDay(startOfMonth(displayDate));
+
+  const prevMonth = () => setDisplayDate(subMonths(displayDate, 1));
+  const nextMonth = () => setDisplayDate(addMonths(displayDate, 1));
 
   return (
     <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6">
@@ -54,7 +77,7 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
         <button onClick={prevMonth} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
         </button>
-        <h2 className="text-xl font-bold text-gray-800">{format(currentMonth, 'yyyy年 M月', { locale: ja })}</h2>
+        <h2 className="text-xl font-bold text-gray-800">{format(displayDate, 'yyyy年 M月', { locale: ja })}</h2>
         <button onClick={nextMonth} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
         </button>
@@ -73,19 +96,22 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
           const dayOfWeek = getDay(day);
           const isHoliday = holidays.has(format(day, 'yyyy-MM-dd'));
           const isTodayFlag = isToday(day);
-          
+          const isParticipatingDay = dayEvents.some(e => participationStatus[e.id]);
+
           let dayClasses = 'border-t border-r border-gray-100 min-h-[120px] p-1.5 flex flex-col hover:bg-gray-50/50 transition-colors';
           let dayTextClasses = 'text-xs font-semibold w-6 h-6 flex items-center justify-center mx-auto';
 
-          if (dayOfWeek === 0 || isHoliday) {
+          if (isParticipatingDay) {
+            dayClasses += ' bg-pink-100/80';
+          } else if (dayOfWeek === 0 || isHoliday) {
             dayClasses += ' bg-rose-50/70';
-            dayTextClasses += ' text-rose-600';
           } else if (dayOfWeek === 6) {
             dayClasses += ' bg-sky-50/70';
-            dayTextClasses += ' text-sky-600';
-          } else {
-            dayTextClasses += ' text-gray-600';
           }
+          
+          if (dayOfWeek === 0 || isHoliday) dayTextClasses += ' text-rose-600';
+          else if (dayOfWeek === 6) dayTextClasses += ' text-sky-600';
+          else dayTextClasses += ' text-gray-600';
           
           if (isTodayFlag) {
             dayClasses = 'border-t border-r border-gray-100 min-h-[120px] p-1.5 flex flex-col transition-colors bg-amber-100/90 ring-1 ring-amber-300';
@@ -99,8 +125,9 @@ export default function MonthlyCalendar({ groupId }: { groupId: string | null })
               </time>
               <div className="flex-grow space-y-1 mt-1 overflow-y-auto">
                 {dayEvents.map(event => (
-                  <div key={event.id} onClick={() => router.push(`/event/${event.id}`)} className="bg-white/80 text-gray-800 text-xs rounded px-1.5 py-1 cursor-pointer hover:shadow-md hover:scale-105 transition-all truncate">
-                    {event.title}
+                  <div key={event.id} onClick={() => router.push(`/event/${event.id}`)} className="bg-white/80 text-gray-800 text-xs rounded px-1.5 py-1 cursor-pointer hover:shadow-md hover:scale-105 transition-all truncate flex items-center gap-1">
+                    {participationStatus[event.id] && <span className="text-pink-500 text-lg leading-none">♥</span>}
+                    <span className="flex-1 truncate">{event.title}</span>
                   </div>
                 ))}
               </div>
