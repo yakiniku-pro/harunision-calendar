@@ -14,7 +14,8 @@ interface EventData {
   title: string; date: any; venue: string; openTime: string; startTime: string;
   prices: { tierName: string; amount: number; drinks: string; }[];
   womenOnlyArea: string; photoPolicy: { still: string; video: string; };
-  ticketUrl: string; performanceTimes: { startAt: string; endAt: string; }[];
+  ticketSales: any;
+  performanceTimes: { startAt: string; endAt: string; }[];
   bonusEventTimes: { startAt: string; endAt: string; }[];
   attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
   groupId: string;
@@ -43,6 +44,7 @@ export default function EventDetailPage() {
   const [participated, setParticipated] = useState(false);
   const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
   const [activeMembers, setActiveMembers] = useState<Person[]>([]);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
@@ -124,9 +126,17 @@ export default function EventDetailPage() {
 
   const updateCheki = async () => {
     if (!user || typeof id !== 'string') return;
-    const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
-    await setDoc(userRecordRef, { chekiMemo }, { merge: true });
-    alert("チェキ枚数を保存しました！");
+    setSaveStatus('saving');
+    try {
+      const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
+      await setDoc(userRecordRef, { chekiMemo }, { merge: true });
+      setSaveStatus('success');
+      setTimeout(() => setSaveStatus('idle'), 1000);
+    } catch (error) {
+      console.error("チェキ枚数の保存に失敗しました:", error);
+      alert("保存に失敗しました。");
+      setSaveStatus('idle');
+    }
   };
 
   const adjust = (personId: string, delta: number) => {
@@ -145,7 +155,7 @@ export default function EventDetailPage() {
     try {
         return parse(`${dateStr} ${endTimeStr}`, 'yyyy-MM-dd HH:mm', new Date());
     } catch {
-        return new Date(); // パース失敗時のフォールバック
+        return new Date();
     }
   };
 
@@ -157,6 +167,24 @@ export default function EventDetailPage() {
     "参加予定": "bg-blue-100 text-blue-800",
     "不参加": "bg-gray-100 text-gray-800",
   };
+
+  const shouldShowDetails = 
+    (event?.womenOnlyArea && event.womenOnlyArea !== '不明') ||
+    (event?.photoPolicy?.still && event.photoPolicy.still !== '不明') ||
+    (event?.photoPolicy?.video && event.photoPolicy.video !== '不明') ||
+    !!event?.attendanceBonus;
+    
+  let displayTicketSales: { saleName: string; startAt: any; endAt: any; url: string; }[] = [];
+  if (event?.ticketSales) {
+    if (Array.isArray(event.ticketSales)) {
+      displayTicketSales = event.ticketSales;
+    } else if (typeof event.ticketSales === 'object') {
+      displayTicketSales = Object.entries(event.ticketSales).map(([key, value]: [string, any]) => ({
+        saleName: key === 'preSaleFastest' ? '最速先行' : key === 'preSaleGeneral' ? '先行販売' : '一般販売',
+        ...value
+      })).filter(s => s.startAt || s.endAt || s.url);
+    }
+  }
 
   if (loading) return (
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
@@ -239,6 +267,16 @@ export default function EventDetailPage() {
             {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
           </InfoSection>
 
+          <InfoSection title="チケット販売" condition={displayTicketSales.length > 0}>
+            {displayTicketSales.map((sale, i) => (
+              <div key={i} className="p-2 border-l-4" style={{borderColor: `hsl(${i * 100}, 70%, 80%)`}}>
+                <p className="font-bold">{sale.saleName}</p>
+                <p>期間: {sale.startAt ? format(sale.startAt.toDate(), 'M/d HH:mm') : '?'} 〜 {sale.endAt ? format(sale.endAt.toDate(), 'M/d HH:mm') : '?'}</p>
+                {sale.url && <a href={sale.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">購入ページへ</a>}
+              </div>
+            ))}
+          </InfoSection>
+
           <InfoSection title="出演時間" condition={event.performanceTimes && event.performanceTimes.length > 0}>
             {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
           </InfoSection>
@@ -246,34 +284,53 @@ export default function EventDetailPage() {
           <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
             {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
           </InfoSection>
-
-          <InfoSection title="詳細">
-            <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>
-            <p><strong>撮影:</strong> 静止画-{event.photoPolicy?.still || '不明'} / 動画-{event.photoPolicy?.video || '不明'}</p>
+          
+          <InfoSection title="詳細" condition={shouldShowDetails}>
+            {event.womenOnlyArea !== '不明' && <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>}
+            {event.photoPolicy?.still !== '不明' && <p><strong>静止画撮影:</strong> {event.photoPolicy.still}</p>}
+            {event.photoPolicy?.video !== '不明' && <p><strong>動画撮影:</strong> {event.photoPolicy.video}</p>}
             {event.attendanceBonus && <p><strong>来場特典:</strong> {event.attendanceBonus}</p>}
-          </InfoSection>
-
-          <InfoSection title="チケットURL" condition={!!event.ticketUrl}>
-            <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{event.ticketUrl}</a>
           </InfoSection>
           
           {user && (
             <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {activeMembers.map(person => (
-                  <div key={person.id} className="flex items-center gap-3">
-                    <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
-                    <span className="w-24 font-medium">{person.primaryName}</span>
-                    <div className="flex items-center gap-2">
-                      <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, -1)}>-</button>
-                      <span className="w-6 text-center">{chekiMemo[person.id] || 0}</span>
-                      <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, 1)}>+</button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-2">
+                {activeMembers.map(person => {
+                  const currentCount = chekiMemo[person.id] || 0;
+                  const isMinusDisabled = currentCount === 0;
+                  return (
+                    <div key={person.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
+                        <span className="w-24 font-medium truncate">{person.primaryName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* ★★★ スプリット・ボタンUI (無効化対応版) ★★★ */}
+                        <div className={`flex rounded-md shadow-sm ${isMinusDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <button onClick={() => adjust(person.id, -1)} disabled={isMinusDisabled} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-l-md font-semibold disabled:bg-gray-200 disabled:text-gray-400">-1</button>
+                          <button onClick={() => adjust(person.id, -0.5)} disabled={isMinusDisabled} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 border-l border-gray-400 text-white text-xs disabled:bg-gray-100 disabled:text-gray-400">-0.5</button>
+                        </div>
+                        <span className="w-10 text-center font-bold text-xl text-pink-500">{currentCount}</span>
+                        <div className="flex rounded-md shadow-sm">
+                          <button onClick={() => adjust(person.id, 0.5)} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-white text-xs">+0.5</button>
+                          <button onClick={() => adjust(person.id, 1)} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-r-md border-l border-pink-600 font-semibold">+1</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              <button onClick={updateCheki} className="mt-4 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
-                チェキ枚数を保存
+              <button
+                onClick={updateCheki}
+                disabled={saveStatus !== 'idle'}
+                className={`mt-4 w-full px-4 py-2 text-white font-semibold rounded-lg transition-all flex items-center justify-center
+                  ${saveStatus === 'success' ? 'bg-green-500' : 'bg-pink-500 hover:bg-pink-600'}
+                  ${saveStatus === 'saving' ? 'bg-pink-300 cursor-not-allowed' : ''}
+                `}
+              >
+                {saveStatus === 'idle' && 'チェキ枚数を保存'}
+                {saveStatus === 'saving' && '保存中...'}
+                {saveStatus === 'success' && <span className="flex items-center gap-2">✔ 保存しました！</span>}
               </button>
             </InfoSection>
           )}

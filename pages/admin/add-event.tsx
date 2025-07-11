@@ -12,7 +12,7 @@ import imageCompression from "browser-image-compression";
 interface Group { id: string; name: string; }
 interface PriceTier { tierName: string; amount: string; drinks: '別' | '込み' | 'なし'; }
 interface TimeSlot { startAt: string; endAt: string; }
-interface SalePeriod { startAt: string; endAt: string; url: string; }
+interface SalePeriod { saleName: string; startAt: string; endAt: string; url: string; }
 
 // フォームの各セクションをコンポーネント化
 const FormSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
@@ -39,12 +39,7 @@ export default function AddEventAdmin() {
   const [prices, setPrices] = useState<PriceTier[]>([{ tierName: '一般', amount: '', drinks: '別' }]);
   const [womenOnlyArea, setWomenOnlyArea] = useState<'なし' | 'あり' | '不明'>('不明');
   const [photoPolicy, setPhotoPolicy] = useState({ still: '不明', video: '不明' });
-  const [ticketSales, setTicketSales] = useState({
-    preSaleFastest: { startAt: '', endAt: '', url: '' },
-    preSaleGeneral: { startAt: '', endAt: '', url: '' },
-    generalSale:    { startAt: '', endAt: '', url: '' },
-  });
-  const [ticketUrl, setTicketUrl] = useState("");
+  const [ticketSales, setTicketSales] = useState<SalePeriod[]>([{ saleName: '一般販売', startAt: '', endAt: '', url: '' }]);
   const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
   const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
   const [attendanceBonus, setAttendanceBonus] = useState("");
@@ -63,7 +58,6 @@ export default function AddEventAdmin() {
         }
       } catch (error) {
         console.error("初期化エラー:", error);
-        alert("データの読み込みに失敗しました。");
       } finally {
         setLoading(false);
       }
@@ -76,9 +70,6 @@ export default function AddEventAdmin() {
   };
   const addArrayItem = (setter: Function, newItem: object) => setter((prev: any[]) => [...prev, newItem]);
   const removeArrayItem = (setter: Function, index: number) => setter((prev: any[]) => prev.filter((_, i) => i !== index));
-  const handleTicketSaleChange = (period: keyof typeof ticketSales, field: keyof SalePeriod, value: string) => {
-    setTicketSales(prev => ({ ...prev, [period]: { ...prev[period], [field]: value } }));
-  };
   const compressAndUpload = async (file: File, path: string) => {
     const compressed = await imageCompression(file, { maxSizeMB: 0.5, maxWidthOrHeight: 1280 });
     const fileRef = ref(storage, path); await uploadBytes(fileRef, compressed); return getDownloadURL(fileRef);
@@ -88,16 +79,17 @@ export default function AddEventAdmin() {
     if (!groupId || !title || !date) return alert("グループ、タイトル、日付は必須です。");
     setIsSubmitting(true);
     try {
-      const toTimestamp = (dateStr: string) => dateStr ? new Date(dateStr) : null;
+      const toTimestamp = (dateTimeStr: string) => dateTimeStr ? new Date(dateTimeStr) : null;
+      
       const newEventData = {
         groupId, title, date: new Date(date), venue, openTime, startTime,
-        prices: prices.filter(p => p.tierName && p.amount).map(p => ({ ...p, amount: Number(p.amount) })),
-        womenOnlyArea, photoPolicy, ticketUrl,
-        ticketSales: {
-            preSaleFastest: { ...ticketSales.preSaleFastest, startAt: toTimestamp(ticketSales.preSaleFastest.startAt), endAt: toTimestamp(ticketSales.preSaleFastest.endAt) },
-            preSaleGeneral: { ...ticketSales.preSaleGeneral, startAt: toTimestamp(ticketSales.preSaleGeneral.startAt), endAt: toTimestamp(ticketSales.preSaleGeneral.endAt) },
-            generalSale:    { ...ticketSales.generalSale,    startAt: toTimestamp(ticketSales.generalSale.startAt),    endAt: toTimestamp(ticketSales.generalSale.endAt) },
-        },
+        prices: prices.filter(p => p.tierName).map(p => ({ ...p, amount: Number(p.amount) || 0 })),
+        womenOnlyArea, photoPolicy,
+        ticketSales: ticketSales.filter(s => s.saleName).map(s => ({
+          ...s,
+          startAt: toTimestamp(s.startAt),
+          endAt: toTimestamp(s.endAt),
+        })),
         performanceTimes: performanceTimes.filter(t => t.startAt && t.endAt),
         bonusEventTimes: bonusEventTimes.filter(t => t.startAt && t.endAt),
         attendanceBonus, isNew: true, createdAt: serverTimestamp(),
@@ -149,7 +141,7 @@ export default function AddEventAdmin() {
       <FormSection title="料金設定">
         {prices.map((price, index) => (
           <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end p-2 border rounded">
-            <input value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般)" className="border p-2 rounded"/>
+            <input value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般, 無料)" className="border p-2 rounded"/>
             <input value={price.amount} onChange={e => handleArrayChange(setPrices, index, 'amount', e.target.value)} placeholder="金額" type="number" className="border p-2 rounded"/>
             <select value={price.drinks} onChange={e => handleArrayChange(setPrices, index, 'drinks', e.target.value as any)} className="border p-2 rounded bg-white">
               <option value="別">D代別</option><option value="込み">D代込</option><option value="なし">D代なし</option>
@@ -161,16 +153,20 @@ export default function AddEventAdmin() {
       </FormSection>
 
       <FormSection title="チケット販売期間">
-        {Object.entries({preSaleFastest: '最速先行', preSaleGeneral: '先行販売', generalSale: '一般販売'}).map(([key, label]) => (
-            <div key={key} className="p-2 border rounded space-y-2">
-                <p className="text-sm font-bold text-gray-600">{label}</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    <div><label className="text-xs text-gray-500">開始日</label><input type="date" value={ticketSales[key as keyof typeof ticketSales].startAt} onChange={e => handleTicketSaleChange(key as any, 'startAt', e.target.value)} className="w-full border p-2 rounded"/></div>
-                    <div><label className="text-xs text-gray-500">終了日</label><input type="date" value={ticketSales[key as keyof typeof ticketSales].endAt} onChange={e => handleTicketSaleChange(key as any, 'endAt', e.target.value)} className="w-full border p-2 rounded"/></div>
-                </div>
-                <input value={ticketSales[key as keyof typeof ticketSales].url} onChange={e => handleTicketSaleChange(key as any, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/>
+        {ticketSales.map((sale, index) => (
+          <div key={index} className="p-3 border rounded-lg space-y-3">
+            <div className="flex justify-between items-center">
+              <input value={sale.saleName} onChange={e => handleArrayChange(setTicketSales, index, 'saleName', e.target.value)} placeholder="販売名称 (例: 先行販売)" className="border p-2 rounded font-semibold w-full"/>
+              <button onClick={() => removeArrayItem(setTicketSales, index)} className="ml-2 px-3 py-2 bg-red-500 text-white rounded text-sm">✕</button>
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div><label className="text-xs text-gray-500">開始日時</label><input type="datetime-local" value={sale.startAt} onChange={e => handleArrayChange(setTicketSales, index, 'startAt', e.target.value)} className="w-full border p-2 rounded"/></div>
+              <div><label className="text-xs text-gray-500">終了日時</label><input type="datetime-local" value={sale.endAt} onChange={e => handleArrayChange(setTicketSales, index, 'endAt', e.target.value)} className="w-full border p-2 rounded"/></div>
+            </div>
+            <input value={sale.url} onChange={e => handleArrayChange(setTicketSales, index, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/>
+          </div>
         ))}
+        <button onClick={() => addArrayItem(setTicketSales, { saleName: '', startAt: '', endAt: '', url: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 販売期間を追加</button>
       </FormSection>
 
       <FormSection title="出演・特典会時間">
@@ -198,7 +194,6 @@ export default function AddEventAdmin() {
       </FormSection>
 
       <FormSection title="詳細情報">
-        <div><label className="block text-sm font-medium text-gray-700">チケット購入URL (その他)</label><input value={ticketUrl} onChange={e => setTicketUrl(e.target.value)} className="mt-1 w-full border p-2 rounded-md" placeholder="https://..."/></div>
         <div><label className="block text-sm font-medium text-gray-700">女性限定エリア</label><select value={womenOnlyArea} onChange={e => setWomenOnlyArea(e.target.value as any)} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="あり">あり</option><option value="なし">なし</option></select></div>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="block text-sm font-medium text-gray-700">静止画撮影</label><select value={photoPolicy.still} onChange={e => setPhotoPolicy({...photoPolicy, still: e.target.value})} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="OK">OK</option><option value="NG">NG</option></select></div>
