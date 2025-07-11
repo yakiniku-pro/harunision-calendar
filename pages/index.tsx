@@ -1,14 +1,70 @@
-// pages/index.tsx
-import { useEffect } from "react";
-import { useRouter } from "next/router";
+import { useState } from "react";
+import MonthlyCalendar from "@/components/MonthlyCalendar";
+import WeeklyCalendar from "@/pages/calendar-week";
+import Link from "next/link";
+import GroupSelector from "@/components/GroupSelector";
+import { useGroup } from "@/contexts/GroupContext";
 
-// Vercelデプロイ用のコメント
-export default function Home() {
-  const router = useRouter();
+export default function NewCalendarPage() {
+  const { selectedGroupId } = useGroup();
+  const [activeView, setActiveView] = useState<'month' | 'week'>('month');
 
-  useEffect(() => {
-    router.replace("/calendar-combined");
-  }, [router]);
+  // --- タブ切り替えボタン用のコンポーネント ---
+  const TabButton = ({ view, label }: { view: 'month' | 'week', label: string }) => (
+    <button
+      onClick={() => setActiveView(view)}
+      className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
+        activeView === view
+          ? 'bg-white text-pink-500 shadow-md'
+          : 'text-gray-500 hover:bg-white/60'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
-  return null;
+  // --- サイドバーのカード用コンポーネント ---
+  const SidebarCard = ({ children }: { children: React.ReactNode }) => (
+    <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm">
+      <div className="p-4">
+        {children}
+      </div>
+    </div>
+  );
+
+  return (
+    // --- メイン背景にグラデーションを適用 ---
+    <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
+          
+          {/* --- 左サイドバー --- */}
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
+            <SidebarCard>
+              <GroupSelector />
+            </SidebarCard>
+            <SidebarCard>
+              <Link href="/stats" className="group flex items-center justify-center w-full text-center px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all">
+                <span className="text-xl mr-2">📊</span>
+                統計ページへ
+              </Link>
+            </SidebarCard>
+          </div>
+
+          {/* --- 右コンテンツエリア --- */}
+          <div className="lg:col-span-3">
+            <div className="flex justify-end mb-4">
+              <div className="flex p-1 bg-white/50 backdrop-blur-sm border border-white/30 rounded-xl shadow-sm">
+                <TabButton view="month" label="月間" />
+                <TabButton view="week" label="週間" />
+              </div>
+            </div>
+            
+            {activeView === 'month' && <MonthlyCalendar groupId={selectedGroupId} />}
+            {activeView === 'week' && <WeeklyCalendar groupId={selectedGroupId} />}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
 }

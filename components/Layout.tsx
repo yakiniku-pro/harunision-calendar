@@ -3,13 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { auth } from '@/lib/firebase';
-import { 
-  signOut, 
-  User, 
-  onAuthStateChanged,
-  GoogleAuthProvider, // 追加
-  signInWithPopup     // 追加
-} from 'firebase/auth';
+import { signOut, User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { ADMIN_UIDS } from '@/lib/config';
 
 type Props = {
@@ -17,7 +11,7 @@ type Props = {
   title?: string;
 };
 
-const Layout = ({ children, title = 'harunision-calendar' }: Props) => {
+const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
@@ -40,11 +34,10 @@ const Layout = ({ children, title = 'harunision-calendar' }: Props) => {
     }
   };
 
-  // ★ ログイン処理用の関数を追加
   const handleLogin = async () => {
-    const provider = new GoogleAuthProvider(); // Google認証プロバイダー
+    const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider); // ポップアップでログイン
+      await signInWithPopup(auth, provider);
       alert('ログインしました。');
     } catch (error) {
       console.error("ログインエラー:", error);
@@ -58,43 +51,42 @@ const Layout = ({ children, title = 'harunision-calendar' }: Props) => {
         <title>{title}</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+        {/* Google Fontsから "M PLUS Rounded 1c" をインポート */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap" rel="stylesheet" />
       </Head>
       
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-xl font-bold text-gray-800 hover:text-gray-600">
-              harunision-calendar
-            </Link>
-            <div className="flex items-center gap-4">
-              {isAdmin && (
-                <Link href="/admin/dashboard" className="text-sm font-medium text-gray-500 hover:text-gray-900">
-                  管理画面
-                </Link>
-              )}
-
-              {/* ★ ユーザーの有無でログイン/ログアウトボタンを切り替え */}
-              {user ? (
-                <button
-                  onClick={handleLogout}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                >
-                  ログアウト
-                </button>
-              ) : (
-                <button
-                  onClick={handleLogin}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800"
-                >
-                  ログイン
-                </button>
-              )}
+      {/* フォントを全体に適用 */}
+      <div style={{ fontFamily: "'M PLUS Rounded 1c', sans-serif" }}>
+        {/* 半透明の新しいヘッダー */}
+        <header className="bg-white/70 backdrop-blur-sm sticky top-0 z-20 border-b border-white/30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/" className="text-xl font-bold text-pink-500 hover:text-pink-600 transition-colors">
+                推し活カレンダー
+              </Link>
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Link href="/admin/dashboard" className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    管理画面
+                  </Link>
+                )}
+                {user ? (
+                  <button onClick={handleLogout} className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    ログアウト
+                  </button>
+                ) : (
+                  <button onClick={handleLogin} className="px-3 py-1.5 text-xs font-semibold text-white bg-pink-400 hover:bg-pink-500 rounded-lg transition-colors">
+                    ログイン
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <div className="bg-gray-50 min-h-screen">
+        {/* メインコンテンツ */}
         <main>{children}</main>
       </div>
     </>

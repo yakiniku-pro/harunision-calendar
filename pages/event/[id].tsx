@@ -2,7 +2,7 @@ import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { ADMIN_UIDS } from "@/lib/config"; // 管理者UIDをインポート
+import { ADMIN_UIDS } from "@/lib/config";
 import { format, isWithinInterval } from "date-fns";
 import { ja } from "date-fns/locale";
 import Image from "next/image";
@@ -42,7 +42,6 @@ export default function EventDetailPage() {
   const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
   const [activeMembers, setActiveMembers] = useState<Person[]>([]);
   
-  // ★ 管理者かどうかを判定するフラグ
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
   useEffect(() => {
@@ -88,7 +87,7 @@ export default function EventDetailPage() {
     fetchEventData();
 
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      setUser(currentUser); // ★ ユーザー情報をStateにセット
+      setUser(currentUser);
       if (currentUser && typeof id === 'string') {
         const userRecordRef = doc(db, "events", id, "userRecords", currentUser.uid);
         const userRecordSnap = await getDoc(userRecordRef);
@@ -119,89 +118,99 @@ export default function EventDetailPage() {
     }));
   };
 
-  if (loading) return <div className="p-6 text-center">読み込み中...</div>;
-  if (!event) return <div className="p-6 text-center text-red-500">イベントが見つかりませんでした。</div>;
+  if (loading) return (
+    <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
+      <div className="text-center text-gray-500">読み込み中...</div>
+    </main>
+  );
+  if (!event) return (
+    <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
+      <div className="text-center text-red-500">イベントが見つかりませんでした。</div>
+    </main>
+  );
 
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto bg-white rounded-lg shadow-lg">
-      <Link href="/calendar-combined" className="text-sm text-blue-600 underline hover:text-blue-800 mb-4 inline-block">
-        ← カレンダーに戻る
-      </Link>
+    <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-pink-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          カレンダーに戻る
+        </Link>
+        <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6">
+          {isAdmin && (
+            <div className="mb-4 p-3 bg-amber-100/80 border border-amber-200 rounded-lg text-center">
+              <Link href={`/admin/edit/${id}`} className="font-bold text-amber-700 hover:underline">
+                管理者としてこのイベントを編集する
+              </Link>
+            </div>
+          )}
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
+          <p className="text-md text-gray-500 mt-1">{format(event.date.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}</p>
 
-      {/* ★ 管理者用の編集リンク */}
-      {isAdmin && (
-        <div className="my-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
-          <Link href={`/admin/edit/${id}`} className="font-bold text-yellow-800 hover:underline">
-            管理者としてこのイベントを編集する
-          </Link>
-        </div>
-      )}
-
-      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
-      <p className="text-md text-gray-500 mt-1">{format(event.date.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}</p>
-
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {event.eventPhotoUrl && (
-          <div>
-            <h3 className="font-semibold text-gray-700 mb-1">イベント写真</h3>
-            <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
-          </div>
-        )}
-        {event.memberPhotoUrl && (
-          <div>
-            <h3 className="font-semibold text-gray-700 mb-1">メンバー写真</h3>
-            <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
-          </div>
-        )}
-      </div>
-
-      <InfoSection title="基本情報">
-        <p><strong>会場:</strong> {event.venue || '未定'}</p>
-        <p><strong>時間:</strong> 開場 {event.openTime || '未定'} / 開演 {event.startTime || '未定'}</p>
-      </InfoSection>
-
-      <InfoSection title="料金" condition={event.prices && event.prices.length > 0}>
-        {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
-      </InfoSection>
-
-      <InfoSection title="出演時間" condition={event.performanceTimes && event.performanceTimes.length > 0}>
-        {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
-      </InfoSection>
-
-      <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
-        {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
-      </InfoSection>
-
-      <InfoSection title="詳細">
-        <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>
-        <p><strong>撮影:</strong> 静止画-{event.photoPolicy?.still || '不明'} / 動画-{event.photoPolicy?.video || '不明'}</p>
-        {event.attendanceBonus && <p><strong>来場特典:</strong> {event.attendanceBonus}</p>}
-      </InfoSection>
-
-      <InfoSection title="チケットURL" condition={!!event.ticketUrl}>
-        <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{event.ticketUrl}</a>
-      </InfoSection>
-      
-      {user && (
-        <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {activeMembers.map(person => (
-              <div key={person.id} className="flex items-center gap-3">
-                <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
-                <span className="w-24 font-medium">{person.primaryName}</span>
-                <div className="flex items-center gap-2">
-                  <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, -1)}>-</button>
-                  <span className="w-6 text-center">{chekiMemo[person.id] || 0}</span>
-                  <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, 1)}>+</button>
-                </div>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {event.eventPhotoUrl && (
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-1">イベント写真</h3>
+                <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
               </div>
-            ))}
+            )}
+            {event.memberPhotoUrl && (
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-1">メンバー写真</h3>
+                <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
+              </div>
+            )}
           </div>
-          <button onClick={updateCheki} className="mt-4 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
-            チェキ枚数を保存
-          </button>
-        </InfoSection>
-      )}
-    </div>
+
+          <InfoSection title="基本情報">
+            <p><strong>会場:</strong> {event.venue || '未定'}</p>
+            <p><strong>時間:</strong> 開場 {event.openTime || '未定'} / 開演 {event.startTime || '未定'}</p>
+          </InfoSection>
+
+          <InfoSection title="料金" condition={event.prices && event.prices.length > 0}>
+            {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
+          </InfoSection>
+
+          <InfoSection title="出演時間" condition={event.performanceTimes && event.performanceTimes.length > 0}>
+            {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+          </InfoSection>
+
+          <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
+            {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+          </InfoSection>
+
+          <InfoSection title="詳細">
+            <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>
+            <p><strong>撮影:</strong> 静止画-{event.photoPolicy?.still || '不明'} / 動画-{event.photoPolicy?.video || '不明'}</p>
+            {event.attendanceBonus && <p><strong>来場特典:</strong> {event.attendanceBonus}</p>}
+          </InfoSection>
+
+          <InfoSection title="チケットURL" condition={!!event.ticketUrl}>
+            <a href={event.ticketUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">{event.ticketUrl}</a>
+          </InfoSection>
+          
+          {user && (
+            <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {activeMembers.map(person => (
+                  <div key={person.id} className="flex items-center gap-3">
+                    <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
+                    <span className="w-24 font-medium">{person.primaryName}</span>
+                    <div className="flex items-center gap-2">
+                      <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, -1)}>-</button>
+                      <span className="w-6 text-center">{chekiMemo[person.id] || 0}</span>
+                      <button className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300" onClick={() => adjust(person.id, 1)}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={updateCheki} className="mt-4 px-4 py-2 bg-pink-500 text-white rounded hover:bg-pink-600">
+                チェキ枚数を保存
+              </button>
+            </InfoSection>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }
