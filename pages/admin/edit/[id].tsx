@@ -13,7 +13,7 @@ import imageCompression from "browser-image-compression";
 // 型定義
 interface Group { id: string; name: string; }
 interface PriceTier { tierName: string; amount: string; drinks: '別' | '込み' | 'なし'; }
-interface TimeSlot { startAt: string; endAt: string; }
+interface TimeSlot { startAt: string; endAt: string; location: string;}
 interface SalePeriod { saleName: string; startAt: string; endAt: string; url: string; }
 
 // フォームの各セクションをコンポーネント化
