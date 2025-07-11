@@ -8,13 +8,12 @@ import { ADMIN_UIDS } from "@/lib/config";
 import { User } from "firebase/auth";
 import imageCompression from "browser-image-compression";
 
-// 型定義
+// 型定義を更新
 interface Group { id: string; name: string; }
 interface PriceTier { tierName: string; amount: string; drinks: '別' | '込み' | 'なし'; }
-interface TimeSlot { startAt: string; endAt: string; }
+interface TimeSlot { startAt: string; endAt: string; location: string; } // ★ locationを追加
 interface SalePeriod { saleName: string; startAt: string; endAt: string; url: string; }
 
-// フォームの各セクションをコンポーネント化
 const FormSection = ({ title, children }: { title: string, children: React.ReactNode }) => (
   <div className="p-4 bg-white rounded-lg shadow space-y-4">
     <h2 className="text-lg font-semibold border-b pb-2 mb-4">{title}</h2>
@@ -40,8 +39,8 @@ export default function AddEventAdmin() {
   const [womenOnlyArea, setWomenOnlyArea] = useState<'なし' | 'あり' | '不明'>('不明');
   const [photoPolicy, setPhotoPolicy] = useState({ still: '不明', video: '不明' });
   const [ticketSales, setTicketSales] = useState<SalePeriod[]>([{ saleName: '一般販売', startAt: '', endAt: '', url: '' }]);
-  const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
-  const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
+  const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '', location: '' }]); // ★ locationを追加
+  const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '', location: '' }]); // ★ locationを追加
   const [attendanceBonus, setAttendanceBonus] = useState("");
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [memberImage, setMemberImage] = useState<File | null>(null);
@@ -113,84 +112,42 @@ export default function AddEventAdmin() {
       <div className="flex justify-between items-center"><h1 className="text-2xl font-bold">新規イベント追加</h1><Link href="/admin/dashboard" className="text-sm text-blue-600 underline hover:text-blue-800">← ダッシュボードに戻る</Link></div>
       
       <FormSection title="基本情報">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">グループ*</label>
-          <select value={groupId} onChange={e => setGroupId(e.target.value)} className="mt-1 w-full border p-2 rounded-md bg-white">
-            <option value="">-- グループを選択 --</option>
-            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">イベント名*</label>
-          <input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">開催日*</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700">会場</label>
-          <input value={venue} onChange={e => setVenue(e.target.value)} className="mt-1 w-full border p-2 rounded-md" />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div><label className="block text-sm font-medium text-gray-700">開場時間</label><input type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div>
-          <div><label className="block text-sm font-medium text-gray-700">開演時間</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div>
-        </div>
+        <div><label className="block text-sm font-medium text-gray-700">グループ*</label><select value={groupId} onChange={e => setGroupId(e.target.value)} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="">-- グループを選択 --</option>{groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+        <div><label className="block text-sm font-medium text-gray-700">イベント名*</label><input value={title} onChange={e => setTitle(e.target.value)} className="mt-1 w-full border p-2 rounded-md" /></div>
+        <div><label className="block text-sm font-medium text-gray-700">開催日*</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 w-full border p-2 rounded-md" /></div>
+        <div><label className="block text-sm font-medium text-gray-700">会場</label><input value={venue} onChange={e => setVenue(e.target.value)} className="mt-1 w-full border p-2 rounded-md" /></div>
+        <div className="grid grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700">開場時間</label><input type="time" value={openTime} onChange={e => setOpenTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div><div><label className="block text-sm font-medium text-gray-700">開演時間</label><input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="mt-1 w-full border p-2 rounded-md"/></div></div>
       </FormSection>
       
-      <FormSection title="料金設定">
-        {prices.map((price, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end p-2 border rounded">
-            <input value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般, 無料)" className="border p-2 rounded"/>
-            <input value={price.amount} onChange={e => handleArrayChange(setPrices, index, 'amount', e.target.value)} placeholder="金額" type="number" className="border p-2 rounded"/>
-            <select value={price.drinks} onChange={e => handleArrayChange(setPrices, index, 'drinks', e.target.value as any)} className="border p-2 rounded bg-white">
-              <option value="別">D代別</option><option value="込み">D代込</option><option value="なし">D代なし</option>
-            </select>
-            <button onClick={() => removeArrayItem(setPrices, index)} className="px-3 py-2 bg-red-500 text-white rounded text-sm">削除</button>
-          </div>
-        ))}
-        <button onClick={() => addArrayItem(setPrices, { tierName: '', amount: '', drinks: '別' })} className="text-sm font-medium text-blue-600 hover:underline">+ 料金種別を追加</button>
-      </FormSection>
-
-      <FormSection title="チケット販売期間">
-        {ticketSales.map((sale, index) => (
-          <div key={index} className="p-3 border rounded-lg space-y-3">
-            <div className="flex justify-between items-center">
-              <input value={sale.saleName} onChange={e => handleArrayChange(setTicketSales, index, 'saleName', e.target.value)} placeholder="販売名称 (例: 先行販売)" className="border p-2 rounded font-semibold w-full"/>
-              <button onClick={() => removeArrayItem(setTicketSales, index)} className="ml-2 px-3 py-2 bg-red-500 text-white rounded text-sm">✕</button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="text-xs text-gray-500">開始日時</label><input type="datetime-local" value={sale.startAt} onChange={e => handleArrayChange(setTicketSales, index, 'startAt', e.target.value)} className="w-full border p-2 rounded"/></div>
-              <div><label className="text-xs text-gray-500">終了日時</label><input type="datetime-local" value={sale.endAt} onChange={e => handleArrayChange(setTicketSales, index, 'endAt', e.target.value)} className="w-full border p-2 rounded"/></div>
-            </div>
-            <input value={sale.url} onChange={e => handleArrayChange(setTicketSales, index, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/>
-          </div>
-        ))}
-        <button onClick={() => addArrayItem(setTicketSales, { saleName: '', startAt: '', endAt: '', url: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 販売期間を追加</button>
-      </FormSection>
-
+      <FormSection title="料金設定">{prices.map((price, index) => (<div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end p-2 border rounded"><input value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般, 無料)" className="border p-2 rounded"/><input value={price.amount} onChange={e => handleArrayChange(setPrices, index, 'amount', e.target.value)} placeholder="金額" type="number" className="border p-2 rounded"/><select value={price.drinks} onChange={e => handleArrayChange(setPrices, index, 'drinks', e.target.value as any)} className="border p-2 rounded bg-white"><option value="別">D代別</option><option value="込み">D代込</option><option value="なし">D代なし</option></select><button onClick={() => removeArrayItem(setPrices, index)} className="px-3 py-2 bg-red-500 text-white rounded text-sm">削除</button></div>))}<button onClick={() => addArrayItem(setPrices, { tierName: '', amount: '', drinks: '別' })} className="text-sm font-medium text-blue-600 hover:underline">+ 料金種別を追加</button></FormSection>
+      <FormSection title="チケット販売期間">{ticketSales.map((sale, index) => (<div key={index} className="p-3 border rounded-lg space-y-3"><div className="flex justify-between items-center"><input value={sale.saleName} onChange={e => handleArrayChange(setTicketSales, index, 'saleName', e.target.value)} placeholder="販売名称 (例: 先行販売)" className="border p-2 rounded font-semibold w-full"/><button onClick={() => removeArrayItem(setTicketSales, index)} className="ml-2 px-3 py-2 bg-red-500 text-white rounded text-sm">✕</button></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs text-gray-500">開始日時</label><input type="datetime-local" value={sale.startAt} onChange={e => handleArrayChange(setTicketSales, index, 'startAt', e.target.value)} className="w-full border p-2 rounded"/></div><div><label className="text-xs text-gray-500">終了日時</label><input type="datetime-local" value={sale.endAt} onChange={e => handleArrayChange(setTicketSales, index, 'endAt', e.target.value)} className="w-full border p-2 rounded"/></div></div><input value={sale.url} onChange={e => handleArrayChange(setTicketSales, index, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/></div>))}<button onClick={() => addArrayItem(setTicketSales, { saleName: '', startAt: '', endAt: '', url: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 販売期間を追加</button></FormSection>
+      
       <FormSection title="出演・特典会時間">
         <p className="text-sm font-medium text-gray-700 mb-2">出演時間</p>
         {performanceTimes.map((time, index) => (
-          <div key={index} className="flex items-center gap-2">
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
              <input type="time" value={time.startAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
-             <span className="text-gray-500">〜</span>
              <input type="time" value={time.endAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
-             <button onClick={() => removeArrayItem(setPerformanceTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+             <div className="flex items-center gap-2">
+                <input value={time.location} onChange={e => handleArrayChange(setPerformanceTimes, index, 'location', e.target.value)} placeholder="場所 (例: SKY STAGE)" className="border p-2 rounded w-full"/>
+                <button onClick={() => removeArrayItem(setPerformanceTimes, index)} className="text-red-500 hover:text-red-700 font-bold flex-shrink-0">✕</button>
+             </div>
           </div>
         ))}
-        <button onClick={() => addArrayItem(setPerformanceTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 出演時間を追加</button>
+        <button onClick={() => addArrayItem(setPerformanceTimes, { startAt: '', endAt: '', location: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 出演時間を追加</button>
         <hr className="my-4"/>
         <p className="text-sm font-medium text-gray-700 mb-2">特典会時間</p>
         {bonusEventTimes.map((time, index) => (
-          <div key={index} className="flex items-center gap-2">
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
              <input type="time" value={time.startAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
-             <span className="text-gray-500">〜</span>
              <input type="time" value={time.endAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
-             <button onClick={() => removeArrayItem(setBonusEventTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button>
+             <div className="flex items-center gap-2">
+                <input value={time.location} onChange={e => handleArrayChange(setBonusEventTimes, index, 'location', e.target.value)} placeholder="場所 (例: GREETING AREA A)" className="border p-2 rounded w-full"/>
+                <button onClick={() => removeArrayItem(setBonusEventTimes, index)} className="text-red-500 hover:text-red-700 font-bold flex-shrink-0">✕</button>
+             </div>
           </div>
         ))}
-        <button onClick={() => addArrayItem(setBonusEventTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 特典会時間を追加</button>
+        <button onClick={() => addArrayItem(setBonusEventTimes, { startAt: '', endAt: '', location: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 特典会時間を追加</button>
       </FormSection>
 
       <FormSection title="詳細情報">

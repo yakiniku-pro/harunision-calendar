@@ -43,8 +43,8 @@ export default function EditEventPage() {
   const [womenOnlyArea, setWomenOnlyArea] = useState<'なし' | 'あり' | '不明'>('不明');
   const [photoPolicy, setPhotoPolicy] = useState({ still: '不明', video: '不明' });
   const [ticketSales, setTicketSales] = useState<SalePeriod[]>([{ saleName: '', startAt: '', endAt: '', url: '' }]);
-  const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
-  const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '' }]);
+  const [performanceTimes, setPerformanceTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '', location: '' }]); // ★ locationを追加
+  const [bonusEventTimes, setBonusEventTimes] = useState<TimeSlot[]>([{ startAt: '', endAt: '', location: '' }]); // ★ locationを追加
   const [attendanceBonus, setAttendanceBonus] = useState("");
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [memberImage, setMemberImage] = useState<File | null>(null);
@@ -92,11 +92,12 @@ export default function EditEventPage() {
             setTicketSales(salesData.length > 0 ? salesData : [{ saleName: '', startAt: '', endAt: '', url: '' }]);
             // ★★★ エラー修正ここまで ★★★
 
-            const fetchedPerfTimes = event.performanceTimes || [];
-            setPerformanceTimes(fetchedPerfTimes.length > 0 ? fetchedPerfTimes : [{ startAt: '', endAt: '' }]);
-            const fetchedBonusTimes = event.bonusEventTimes || [];
-            setBonusEventTimes(fetchedBonusTimes.length > 0 ? fetchedBonusTimes : [{ startAt: '', endAt: '' }]);
-            setAttendanceBonus(event.attendanceBonus || "");
+            const fetchedPerfTimes = event.performanceTimes?.map((t: any) => ({...t, location: t.location || ''})) || [];
+            setPerformanceTimes(fetchedPerfTimes.length > 0 ? fetchedPerfTimes : [{ startAt: '', endAt: '', location: '' }]);
+            
+            const fetchedBonusTimes = event.bonusEventTimes?.map((t: any) => ({...t, location: t.location || ''})) || [];
+            setBonusEventTimes(fetchedBonusTimes.length > 0 ? fetchedBonusTimes : [{ startAt: '', endAt: '', location: '' }]);
+             setAttendanceBonus(event.attendanceBonus || "");
             setCurrentEventPhotoUrl(event.eventPhotoUrl || "");
             setCurrentMemberPhotoUrl(event.memberPhotoUrl || "");
           } else {
@@ -183,12 +184,30 @@ export default function EditEventPage() {
       </FormSection>
       <FormSection title="出演・特典会時間">
         <p className="text-sm font-medium text-gray-700 mb-2">出演時間</p>
-        {performanceTimes.map((time, index) => (<div key={index} className="flex items-center gap-2"><input type="time" value={time.startAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/><span className="text-gray-500">〜</span><input type="time" value={time.endAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/><button onClick={() => removeArrayItem(setPerformanceTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button></div>))}
-        <button onClick={() => addArrayItem(setPerformanceTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 出演時間を追加</button>
+        {performanceTimes.map((time, index) => (
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+             <input type="time" value={time.startAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
+             <input type="time" value={time.endAt} onChange={e => handleArrayChange(setPerformanceTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
+             <div className="flex items-center gap-2">
+                <input value={time.location} onChange={e => handleArrayChange(setPerformanceTimes, index, 'location', e.target.value)} placeholder="場所 (例: SKY STAGE)" className="border p-2 rounded w-full"/>
+                <button onClick={() => removeArrayItem(setPerformanceTimes, index)} className="text-red-500 hover:text-red-700 font-bold flex-shrink-0">✕</button>
+             </div>
+          </div>
+        ))}
+        <button onClick={() => addArrayItem(setPerformanceTimes, { startAt: '', endAt: '', location: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 出演時間を追加</button>
         <hr className="my-4"/>
         <p className="text-sm font-medium text-gray-700 mb-2">特典会時間</p>
-        {bonusEventTimes.map((time, index) => (<div key={index} className="flex items-center gap-2"><input type="time" value={time.startAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/><span className="text-gray-500">〜</span><input type="time" value={time.endAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/><button onClick={() => removeArrayItem(setBonusEventTimes, index)} className="text-red-500 hover:text-red-700 font-bold">✕</button></div>))}
-        <button onClick={() => addArrayItem(setBonusEventTimes, { startAt: '', endAt: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 特典会時間を追加</button>
+        {bonusEventTimes.map((time, index) => (
+          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+             <input type="time" value={time.startAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'startAt', e.target.value)} className="border p-2 rounded"/>
+             <input type="time" value={time.endAt} onChange={e => handleArrayChange(setBonusEventTimes, index, 'endAt', e.target.value)} className="border p-2 rounded"/>
+             <div className="flex items-center gap-2">
+                <input value={time.location} onChange={e => handleArrayChange(setBonusEventTimes, index, 'location', e.target.value)} placeholder="場所 (例: GREETING AREA A)" className="border p-2 rounded w-full"/>
+                <button onClick={() => removeArrayItem(setBonusEventTimes, index)} className="text-red-500 hover:text-red-700 font-bold flex-shrink-0">✕</button>
+             </div>
+          </div>
+        ))}
+        <button onClick={() => addArrayItem(setBonusEventTimes, { startAt: '', endAt: '', location: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 特典会時間を追加</button>
       </FormSection>
       <FormSection title="詳細情報">
         <div><label className="block text-sm font-medium text-gray-700">女性限定エリア</label><select value={womenOnlyArea} onChange={e => setWomenOnlyArea(e.target.value as any)} className="mt-1 w-full border p-2 rounded-md bg-white"><option value="不明">不明</option><option value="あり">あり</option><option value="なし">なし</option></select></div>

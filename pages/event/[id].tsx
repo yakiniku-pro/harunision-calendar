@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ADMIN_UIDS } from "@/lib/config";
@@ -15,8 +15,8 @@ interface EventData {
   prices: { tierName: string; amount: number; drinks: string; }[];
   womenOnlyArea: string; photoPolicy: { still: string; video: string; };
   ticketSales: any;
-  performanceTimes: { startAt: string; endAt: string; }[];
-  bonusEventTimes: { startAt: string; endAt: string; }[];
+  performanceTimes: { startAt: string; endAt: string; location?: string; }[];
+  bonusEventTimes: { startAt: string; endAt: string; location?: string; }[];
   attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
   groupId: string;
 }
@@ -45,6 +45,7 @@ export default function EventDetailPage() {
   const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
   const [activeMembers, setActiveMembers] = useState<Person[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+  const [showEndedSales, setShowEndedSales] = useState(false);
   
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
@@ -131,7 +132,7 @@ export default function EventDetailPage() {
       const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
       await setDoc(userRecordRef, { chekiMemo }, { merge: true });
       setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 700);
+      setTimeout(() => setSaveStatus('idle'), 700); // ★ 700msに変更
     } catch (error) {
       console.error("チェキ枚数の保存に失敗しました:", error);
       alert("保存に失敗しました。");
@@ -174,17 +175,27 @@ export default function EventDetailPage() {
     (event?.photoPolicy?.video && event.photoPolicy.video !== '不明') ||
     !!event?.attendanceBonus;
     
-  let displayTicketSales: { saleName: string; startAt: any; endAt: any; url: string; }[] = [];
-  if (event?.ticketSales) {
+  // ★ 変数の定義順を修正し、データ互換性も考慮
+  const displayTicketSales = useMemo(() => {
+    if (!event?.ticketSales) return [];
     if (Array.isArray(event.ticketSales)) {
-      displayTicketSales = event.ticketSales;
-    } else if (typeof event.ticketSales === 'object') {
-      displayTicketSales = Object.entries(event.ticketSales).map(([key, value]: [string, any]) => ({
+      return event.ticketSales;
+    }
+    if (typeof event.ticketSales === 'object') {
+      return Object.entries(event.ticketSales).map(([key, value]: [string, any]) => ({
         saleName: key === 'preSaleFastest' ? '最速先行' : key === 'preSaleGeneral' ? '先行販売' : '一般販売',
         ...value
       })).filter(s => s.startAt || s.endAt || s.url);
     }
-  }
+    return [];
+  }, [event?.ticketSales]);
+
+  const allSalesEnded = useMemo(() => {
+    if (displayTicketSales.length === 0) {
+        return false;
+    }
+    return displayTicketSales.every(sale => sale.endAt && isPast(sale.endAt.toDate()));
+  }, [displayTicketSales]);
 
   if (loading) return (
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
@@ -267,22 +278,43 @@ export default function EventDetailPage() {
             {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
           </InfoSection>
 
-          <InfoSection title="チケット販売" condition={displayTicketSales.length > 0}>
-            {displayTicketSales.map((sale, i) => (
-              <div key={i} className="p-2 border-l-4" style={{borderColor: `hsl(${i * 100}, 70%, 80%)`}}>
-                <p className="font-bold">{sale.saleName}</p>
-                <p>期間: {sale.startAt ? format(sale.startAt.toDate(), 'M/d HH:mm') : '?'} 〜 {sale.endAt ? format(sale.endAt.toDate(), 'M/d HH:mm') : '?'}</p>
-                {sale.url && <a href={sale.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">購入ページへ</a>}
+          <div className="pt-4 mt-4 border-t border-gray-200">
+            <button
+              onClick={() => allSalesEnded && setShowEndedSales(prev => !prev)}
+              disabled={!allSalesEnded}
+              className="w-full flex justify-between items-center disabled:cursor-default"
+            >
+              <h2 className="text-lg font-semibold text-gray-800">
+                チケット販売 {allSalesEnded && <span className="text-sm text-gray-500">(終了済)</span>}
+              </h2>
+              {allSalesEnded && (
+                <span className={`text-xl transition-transform duration-300 ${showEndedSales ? 'rotate-180' : ''}`}>▼</span>
+              )}
+            </button>
+            
+            {(!allSalesEnded || showEndedSales) && (
+              <div className="mt-2 space-y-2 text-sm text-gray-700">
+                {displayTicketSales.length > 0 ? (
+                  displayTicketSales.map((sale, i) => (
+                    <div key={i} className="p-2 border-l-4" style={{borderColor: `hsl(${i * 100}, 70%, 80%)`}}>
+                      <p className="font-bold">{sale.saleName}</p>
+                      <p>期間: {sale.startAt ? format(sale.startAt.toDate(), 'M/d HH:mm', { locale: ja }) : '?'} 〜 {sale.endAt ? format(sale.endAt.toDate(), 'M/d HH:mm', { locale: ja }) : '?'}</p>
+                      {sale.url && <a href={sale.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">購入ページへ</a>}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500">チケット情報はありません。</p>
+                )}
               </div>
-            ))}
-          </InfoSection>
+            )}
+          </div>
 
           <InfoSection title="出演時間" condition={event.performanceTimes && event.performanceTimes.length > 0}>
-            {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+            {event.performanceTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt} {t.location && <span className="text-gray-500">@ {t.location}</span>}</p>)}
           </InfoSection>
 
           <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
-            {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt}</p>)}
+            {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt} {t.location && <span className="text-gray-500">@ {t.location}</span>}</p>)}
           </InfoSection>
           
           <InfoSection title="詳細" condition={shouldShowDetails}>
@@ -294,7 +326,6 @@ export default function EventDetailPage() {
           
           {user && (
             <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
-              {/* ★ レイアウトを修正 */}
               <div className="grid grid-cols-1 gap-y-4">
                 {activeMembers.map(person => {
                   const currentCount = chekiMemo[person.id] || 0;
@@ -313,7 +344,7 @@ export default function EventDetailPage() {
                         <span className="w-10 text-center font-bold text-xl text-pink-500">{currentCount}</span>
                         <div className="flex rounded-md shadow-sm">
                           <button onClick={() => adjust(person.id, 0.5)} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-white text-xs">+0.5</button>
-                          <button onClick={() => adjust(person.id, 1)} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-r-md border-l border-pink-600 font-semibold">+1</button>
+                          <button onClick={() => adjust(person.id, 1)} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-r-md border-l border-gray-500 font-semibold">+1</button>
                         </div>
                       </div>
                     </div>
