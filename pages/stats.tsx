@@ -3,7 +3,7 @@ import { collection, getDocs, doc, getDoc, query, where, Timestamp, orderBy } fr
 import { db, auth } from "@/lib/firebase";
 import Link from "next/link";
 import { User } from "firebase/auth";
-import { format, parse, differenceInDays, isAfter, isBefore, startOfMonth, endOfMonth } from "date-fns";
+import { format, parse, differenceInDays, isAfter, isBefore, isToday, startOfToday } from "date-fns";
 import { ja } from "date-fns/locale";
 
 import { Line } from 'react-chartjs-2';
@@ -241,6 +241,7 @@ function HighlightView({ user }: { user: User }) {
         const userRecordSnapshots = await Promise.all(userRecordPromises);
         
         const stats: { [personId: string]: OshiHighlightStats } = {};
+        const now = startOfToday();
 
         userRecordSnapshots.forEach((snap, index) => {
           if (snap.exists() && snap.data().participated) {
@@ -257,8 +258,10 @@ function HighlightView({ user }: { user: User }) {
                 if (!stats[personId].firstDate || isBefore(eventDate, stats[personId].firstDate!)) {
                   stats[personId].firstDate = eventDate;
                 }
-                if (!stats[personId].lastDate || isAfter(eventDate, stats[personId].lastDate!)) {
-                  stats[personId].lastDate = eventDate;
+                if (isBefore(eventDate, now) || isToday(eventDate)) {
+                  if (!stats[personId].lastDate || isAfter(eventDate, stats[personId].lastDate!)) {
+                    stats[personId].lastDate = eventDate;
+                  }
                 }
                 const monthKey = format(eventDate, 'yyyy-MM');
                 stats[personId].monthlyChekis[monthKey] = (stats[personId].monthlyChekis[monthKey] || 0) + (count as number);
@@ -298,6 +301,13 @@ function HighlightView({ user }: { user: User }) {
       }]
     };
   }, [selectedOshiData, selectedOshiInfo]);
+
+  const renderLastDateText = (lastDate: Date | null) => {
+    if (!lastDate) return '-';
+    if (isToday(lastDate)) return '今日！';
+    const diff = differenceInDays(new Date(), lastDate);
+    return `${diff}日前`;
+  }
 
   if (loading) return <div className="p-4 text-center">ハイライトを生成中...</div>;
 
@@ -340,7 +350,7 @@ function HighlightView({ user }: { user: User }) {
             <div><p className="text-xs text-gray-500">累計チェキ枚数</p><p className="text-2xl font-bold">{selectedOshiData.totalChekis}<span className="text-sm font-normal ml-1">枚</span></p></div>
             <div><p className="text-xs text-gray-500">参加イベント数</p><p className="text-2xl font-bold">{selectedOshiData.attendedEventsCount}<span className="text-sm font-normal ml-1">回</span></p></div>
             <div><p className="text-xs text-gray-500">初めて会った日</p><p className="text-md font-semibold">{selectedOshiData.firstDate ? format(selectedOshiData.firstDate, 'yyyy/MM/dd') : '-'}</p></div>
-            <div><p className="text-xs text-gray-500">最近会った日</p><p className="text-md font-semibold">{selectedOshiData.lastDate ? `${differenceInDays(new Date(), selectedOshiData.lastDate)}日前` : '-'}</p></div>
+            <div><p className="text-xs text-gray-500">最近会った日</p><p className="text-md font-semibold">{renderLastDateText(selectedOshiData.lastDate)}</p></div>
           </div>
           <div className="mt-4 h-32"><Line data={oshiChartData} options={{ maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 8 } } }, y: { ticks: { precision: 0 } } } }}/></div>
         </div>

@@ -1,9 +1,9 @@
 import { useRouter } from "next/router";
 import { useEffect, useState, useMemo } from "react";
-import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ADMIN_UIDS } from "@/lib/config";
-import { format, isWithinInterval, isPast, parse } from "date-fns";
+import { format, isWithinInterval, isPast, parse, isAfter, startOfDay } from "date-fns";
 import { ja } from "date-fns/locale";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,14 +40,23 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventData | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [participated, setParticipated] = useState(false);
   const [chekiMemo, setChekiMemo] = useState<{ [personId: string]: number }>({});
   const [activeMembers, setActiveMembers] = useState<Person[]>([]);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [showEndedSales, setShowEndedSales] = useState(false);
-  
+
+  const [participationStatus, setParticipationStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+  const [chekiSaveStatus, setChekiSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
+
+  const canEditCheki = useMemo(() => {
+    if (!event?.date) return false;
+    const eventDate = event.date.toDate();
+    return !isAfter(startOfDay(eventDate), startOfDay(new Date()));
+  }, [event]);
+
 
   useEffect(() => {
     if (typeof id !== 'string' || !id) return;
@@ -68,12 +77,12 @@ export default function EventDetailPage() {
         const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
         const membershipsSnap = await getDocs(membershipsQuery);
         const eventDate = eventData.date.toDate();
-        
+
         const activePersonIds = membershipsSnap.docs
           .map(d => d.data() as Membership)
           .filter(m => {
             const joined = m.joinedAt.toDate();
-            const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000); 
+            const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000);
             return isWithinInterval(eventDate, { start: joined, end: left });
           })
           .map(m => m.personId);
@@ -115,28 +124,48 @@ export default function EventDetailPage() {
 
     return () => unsubscribe();
   }, [id]);
-  
+
   const toggleParticipation = async () => {
-    if (!user || typeof id !== 'string') return;
+    if (!user || typeof id !== 'string' || participationStatus !== 'idle') return;
+
+    setParticipationStatus('saving');
     const newStatus = !participated;
-    setParticipated(newStatus);
-    const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
-    await setDoc(userRecordRef, { participated: newStatus }, { merge: true });
-    alert(newStatus ? "イベントに参加登録しました。" : "参加を取り消しました。");
+
+    try {
+      const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
+      await setDoc(userRecordRef, {
+        participated: newStatus,
+        updatedAt: serverTimestamp(),
+        lastAction: 'participation'
+      }, { merge: true });
+
+      setParticipated(newStatus);
+      setParticipationStatus('success');
+
+      setTimeout(() => setParticipationStatus('idle'), 700);
+    } catch (error) {
+      console.error("参加状況の更新に失敗しました:", error);
+      alert("エラーが発生しました。時間を置いて再度お試しください。");
+      setParticipationStatus('idle');
+    }
   };
 
   const updateCheki = async () => {
     if (!user || typeof id !== 'string') return;
-    setSaveStatus('saving');
+    setChekiSaveStatus('saving');
     try {
       const userRecordRef = doc(db, "events", id, "userRecords", user.uid);
-      await setDoc(userRecordRef, { chekiMemo }, { merge: true });
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 700); // ★ 700msに変更
+      await setDoc(userRecordRef, {
+        chekiMemo,
+        updatedAt: serverTimestamp(),
+        lastAction: 'cheki'
+      }, { merge: true });
+      setChekiSaveStatus('success');
+      setTimeout(() => setChekiSaveStatus('idle'), 700);
     } catch (error) {
       console.error("チェキ枚数の保存に失敗しました:", error);
       alert("保存に失敗しました。");
-      setSaveStatus('idle');
+      setChekiSaveStatus('idle');
     }
   };
 
@@ -161,21 +190,20 @@ export default function EventDetailPage() {
   };
 
   const eventHasEnded = isPast(getEventEndTime());
-  const participationStatus = participated ? (eventHasEnded ? "参加済み" : "参加予定") : "不参加";
-  
+  const participationDisplayStatus = participated ? (eventHasEnded ? "参加済み" : "参加予定") : "不参加";
+
   const statusStyles = {
     "参加済み": "bg-green-100 text-green-800",
     "参加予定": "bg-blue-100 text-blue-800",
     "不参加": "bg-gray-100 text-gray-800",
   };
 
-  const shouldShowDetails = 
+  const shouldShowDetails =
     (event?.womenOnlyArea && event.womenOnlyArea !== '不明') ||
     (event?.photoPolicy?.still && event.photoPolicy.still !== '不明') ||
     (event?.photoPolicy?.video && event.photoPolicy.video !== '不明') ||
     !!event?.attendanceBonus;
-    
-  // ★ 変数の定義順を修正し、データ互換性も考慮
+
   const displayTicketSales = useMemo(() => {
     if (!event?.ticketSales) return [];
     if (Array.isArray(event.ticketSales)) {
@@ -231,22 +259,31 @@ export default function EventDetailPage() {
               </Link>
             </div>
           )}
-          
+
           {user && (
             <div className="mb-4 p-3 flex justify-between items-center bg-white/50 rounded-lg">
               <div>
                 <span className="text-xs text-gray-500">あなたの参加状況</span>
-                <p className={`px-2 py-0.5 inline-block text-sm font-bold rounded-full ${statusStyles[participationStatus]}`}>
-                  {participationStatus}
+                <p className={`px-2 py-0.5 inline-block text-sm font-bold rounded-full ${statusStyles[participationDisplayStatus]}`}>
+                  {participationDisplayStatus}
                 </p>
               </div>
               <button
                 onClick={toggleParticipation}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
-                  participated ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-400 text-white hover:bg-pink-500'
-                }`}
+                disabled={participationStatus !== 'idle'}
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all w-44 text-center
+                  ${
+                    participationStatus === 'success' ? 'bg-green-500 text-white' :
+                    participationStatus === 'saving' ? 'bg-gray-300 text-gray-500 cursor-not-allowed' :
+                    participated ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-pink-400 text-white hover:bg-pink-500'
+                  }
+                `}
               >
-                {participated ? '参加を取り消す' : '参加する'}
+                {
+                  participationStatus === 'saving' ? '更新中...' :
+                  participationStatus === 'success' ? (participated ? '✔ 参加登録完了！' : '✔ 参加取消完了！') :
+                  participated ? '参加を取り消す' : '参加する'
+                }
               </button>
             </div>
           )}
@@ -291,7 +328,7 @@ export default function EventDetailPage() {
                 <span className={`text-xl transition-transform duration-300 ${showEndedSales ? 'rotate-180' : ''}`}>▼</span>
               )}
             </button>
-            
+
             {(!allSalesEnded || showEndedSales) && (
               <div className="mt-2 space-y-2 text-sm text-gray-700">
                 {displayTicketSales.length > 0 ? (
@@ -316,53 +353,61 @@ export default function EventDetailPage() {
           <InfoSection title="特典会" condition={event.bonusEventTimes && event.bonusEventTimes.length > 0}>
             {event.bonusEventTimes.map((t, i) => <p key={i}>{t.startAt} 〜 {t.endAt} {t.location && <span className="text-gray-500">@ {t.location}</span>}</p>)}
           </InfoSection>
-          
+
           <InfoSection title="詳細" condition={shouldShowDetails}>
             {event.womenOnlyArea !== '不明' && <p><strong>女性エリア:</strong> {event.womenOnlyArea}</p>}
             {event.photoPolicy?.still !== '不明' && <p><strong>静止画撮影:</strong> {event.photoPolicy.still}</p>}
             {event.photoPolicy?.video !== '不明' && <p><strong>動画撮影:</strong> {event.photoPolicy.video}</p>}
             {event.attendanceBonus && <p><strong>来場特典:</strong> {event.attendanceBonus}</p>}
           </InfoSection>
-          
+
           {user && (
             <InfoSection title="あなたのチェキ記録" condition={activeMembers.length > 0}>
-              <div className="grid grid-cols-1 gap-y-4">
-                {activeMembers.map(person => {
-                  const currentCount = chekiMemo[person.id] || 0;
-                  const isMinusDisabled = currentCount === 0;
-                  return (
-                    <div key={person.id} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
-                        <span className="w-24 font-medium truncate">{person.primaryName}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className={`flex rounded-md shadow-sm ${isMinusDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                          <button onClick={() => adjust(person.id, -1)} disabled={isMinusDisabled} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-l-md font-semibold disabled:bg-gray-200 disabled:text-gray-400">-1</button>
-                          <button onClick={() => adjust(person.id, -0.5)} disabled={isMinusDisabled} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 border-l border-gray-400 text-white text-xs disabled:bg-gray-100 disabled:text-gray-400">-0.5</button>
+              {!canEditCheki ? (
+                <div className="p-2 text-center text-sm text-gray-600 bg-gray-100 rounded-md">
+                  未来のイベントのチェキ記録は、イベント当日以降に可能になります。
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-y-4">
+                    {activeMembers.map(person => {
+                      const currentCount = chekiMemo[person.id] || 0;
+                      const isMinusDisabled = currentCount === 0;
+                      return (
+                        <div key={person.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span style={{ backgroundColor: person.color || '#ccc' }} className="w-5 h-5 rounded-full border flex-shrink-0"></span>
+                            <span className="w-24 font-medium truncate">{person.primaryName}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className={`flex rounded-md shadow-sm ${isMinusDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              <button onClick={() => adjust(person.id, -1)} disabled={isMinusDisabled} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-l-md font-semibold disabled:bg-gray-200 disabled:text-gray-400">-1</button>
+                              <button onClick={() => adjust(person.id, -0.5)} disabled={isMinusDisabled} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 border-l border-gray-400 text-white text-xs disabled:bg-gray-100 disabled:text-gray-400">-0.5</button>
+                            </div>
+                            <span className="w-10 text-center font-bold text-xl text-pink-500">{currentCount}</span>
+                            <div className="flex rounded-md shadow-sm">
+                              <button onClick={() => adjust(person.id, 0.5)} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-white text-xs">+0.5</button>
+                              <button onClick={() => adjust(person.id, 1)} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-r-md border-l border-gray-500 font-semibold">+1</button>
+                            </div>
+                          </div>
                         </div>
-                        <span className="w-10 text-center font-bold text-xl text-pink-500">{currentCount}</span>
-                        <div className="flex rounded-md shadow-sm">
-                          <button onClick={() => adjust(person.id, 0.5)} className="px-2 py-1 bg-gray-300 hover:bg-gray-400 text-white text-xs">+0.5</button>
-                          <button onClick={() => adjust(person.id, 1)} className="px-3 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded-r-md border-l border-gray-500 font-semibold">+1</button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                onClick={updateCheki}
-                disabled={saveStatus !== 'idle'}
-                className={`mt-4 w-full px-4 py-2 text-white font-semibold rounded-lg transition-all flex items-center justify-center
-                  ${saveStatus === 'success' ? 'bg-green-500' : 'bg-pink-500 hover:bg-pink-600'}
-                  ${saveStatus === 'saving' ? 'bg-pink-300 cursor-not-allowed' : ''}
-                `}
-              >
-                {saveStatus === 'idle' && 'チェキ枚数を保存'}
-                {saveStatus === 'saving' && '保存中...'}
-                {saveStatus === 'success' && <span className="flex items-center gap-2">✔ 保存しました！</span>}
-              </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={updateCheki}
+                    disabled={chekiSaveStatus !== 'idle'}
+                    className={`mt-4 w-full px-4 py-2 text-white font-semibold rounded-lg transition-all flex items-center justify-center
+                      ${chekiSaveStatus === 'success' ? 'bg-green-500' : 'bg-pink-500 hover:bg-pink-600'}
+                      ${chekiSaveStatus === 'saving' ? 'bg-pink-300 cursor-not-allowed' : ''}
+                    `}
+                  >
+                    {chekiSaveStatus === 'idle' && 'チェキ枚数を保存'}
+                    {chekiSaveStatus === 'saving' && '保存中...'}
+                    {chekiSaveStatus === 'success' && <span className="flex items-center gap-2">✔ 保存しました！</span>}
+                  </button>
+                </>
+              )}
             </InfoSection>
           )}
         </div>

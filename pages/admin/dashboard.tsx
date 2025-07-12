@@ -108,8 +108,10 @@ export default function AdminDashboard() {
           <Link href="/admin/groups" className="px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600">グループ管理</Link>
           <Link href="/admin/persons" className="px-3 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">人物管理</Link>
           <Link href="/admin/memberships" className="px-3 py-2 bg-purple-500 text-white rounded text-sm hover:bg-purple-600">在籍・表示順管理</Link>
-          <Link href="/admin/add-event" className="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">＋ 新規イベント追加</Link>
-          <div className="border-l pl-2 ml-2">
+          <Link href="/admin/analytics" className="px-3 py-2 bg-cyan-500 text-white rounded text-sm hover:bg-cyan-600">利用状況分析</Link>
+          
+          <div className="border-l pl-2 ml-2 flex gap-2">
+            <Link href="/admin/add-event" className="px-3 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600">＋ 新規イベント追加</Link>
             <CsvImporter groupId={selectedGroupId} onImported={fetchEvents} />
           </div>
       </div>
