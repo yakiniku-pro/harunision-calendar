@@ -8,6 +8,10 @@ import { ja } from "date-fns/locale";
 import Image from "next/image";
 import Link from "next/link";
 import { User } from "firebase/auth";
+// ★ 1. ライトボックス用のコンポーネントとCSSをインポート
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+
 
 // 型定義
 interface EventData {
@@ -19,6 +23,7 @@ interface EventData {
   bonusEventTimes: { startAt: string; endAt: string; location?: string; }[];
   attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
   groupId: string;
+  status?: 'published' | 'cancelled' | 'draft';
 }
 interface Person { id: string; primaryName:string; color?: string; }
 interface Membership { personId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; groupId: string; }
@@ -48,6 +53,10 @@ export default function EventDetailPage() {
 
   const [participationStatus, setParticipationStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [chekiSaveStatus, setChekiSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
+  
+  // ★ 2. ライトボックスの開閉を管理するstate
+  const [eventPhotoOpen, setEventPhotoOpen] = useState(false);
+  const [memberPhotoOpen, setMemberPhotoOpen] = useState(false);
 
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
@@ -230,7 +239,7 @@ export default function EventDetailPage() {
       <div className="text-center text-gray-500">読み込み中...</div>
     </main>
   );
-  if (!event) return (
+  if (!event || event.status === 'cancelled') return (
     <main className="p-4 md:p-6 bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 min-h-screen">
       <div className="max-w-2xl mx-auto space-y-4">
         <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-pink-500 transition-colors">
@@ -238,7 +247,7 @@ export default function EventDetailPage() {
           カレンダーに戻る
         </Link>
         <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm p-4 sm:p-6 text-center text-red-500">
-          イベントが見つかりませんでした。
+          イベントが見つからないか、中止になりました。
         </div>
       </div>
     </main>
@@ -291,20 +300,37 @@ export default function EventDetailPage() {
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{event.title}</h1>
           <p className="text-md text-gray-500 mt-1">{format(event.date.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}</p>
 
+          {/* ★ 3. 画像表示部分の修正 */}
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             {event.eventPhotoUrl && (
               <div>
                 <h3 className="font-semibold text-gray-700 mb-1">イベント写真</h3>
-                <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
+                <button type="button" onClick={() => setEventPhotoOpen(true)} className="w-full h-auto cursor-zoom-in text-left">
+                  <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
+                </button>
               </div>
             )}
             {event.memberPhotoUrl && (
               <div>
                 <h3 className="font-semibold text-gray-700 mb-1">メンバー写真</h3>
-                <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
+                <button type="button" onClick={() => setMemberPhotoOpen(true)} className="w-full h-auto cursor-zoom-in text-left">
+                  <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
+                </button>
               </div>
             )}
           </div>
+
+          <Lightbox
+            open={eventPhotoOpen}
+            close={() => setEventPhotoOpen(false)}
+            slides={event.eventPhotoUrl ? [{ src: event.eventPhotoUrl }] : []}
+          />
+          <Lightbox
+            open={memberPhotoOpen}
+            close={() => setMemberPhotoOpen(false)}
+            slides={event.memberPhotoUrl ? [{ src: event.memberPhotoUrl }] : []}
+          />
+          {/* ★ 修正ここまで */}
 
           <InfoSection title="基本情報">
             <p><strong>会場:</strong> {event.venue || '未定'}</p>
@@ -312,7 +338,7 @@ export default function EventDetailPage() {
           </InfoSection>
 
           <InfoSection title="料金" condition={event.prices && event.prices.length > 0}>
-            {event.prices.map(p => <p key={p.tierName}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
+            {event.prices.map((p, i) => <p key={i}><strong>{p.tierName}:</strong> ¥{p.amount.toLocaleString()} (D代{p.drinks})</p>)}
           </InfoSection>
 
           <div className="pt-4 mt-4 border-t border-gray-200">
@@ -335,7 +361,7 @@ export default function EventDetailPage() {
                   displayTicketSales.map((sale, i) => (
                     <div key={i} className="p-2 border-l-4" style={{borderColor: `hsl(${i * 100}, 70%, 80%)`}}>
                       <p className="font-bold">{sale.saleName}</p>
-                      <p>期間: {sale.startAt ? format(sale.startAt.toDate(), 'M/d HH:mm', { locale: ja }) : '?'} 〜 {sale.endAt ? format(sale.endAt.toDate(), 'M/d HH:mm', { locale: ja }) : '?'}</p>
+                      <p>期間: {sale.startAt ? format(sale.startAt.toDate(), 'M/d HH:mm', { locale: ja }) : ''} 〜 {sale.endAt ? format(sale.endAt.toDate(), 'M/d HH:mm', { locale: ja }) : ''}</p>
                       {sale.url && <a href={sale.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs break-all">購入ページへ</a>}
                     </div>
                   ))
