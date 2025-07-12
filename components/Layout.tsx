@@ -15,8 +15,6 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
   const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
-
-  // ★ 開発環境フラグ用のstateを追加
   const [isDev, setIsDev] = useState(false);
 
   useEffect(() => {
@@ -26,7 +24,6 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
     return () => unsubscribe();
   }, []);
   
-  // ★ クライアントサイドでのみ実行し、ホスト名を確認するuseEffectを追加
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsDev(window.location.hostname === 'localhost');
@@ -61,15 +58,6 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
         <title>{title}</title>
         <meta charSet="utf-8" />
         <meta name="viewport" content="initial-scale=1.0, width=device-width" />
-        
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#f472b6" />
-
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700&display=swap" rel="stylesheet" />
       </Head>
       
       <div style={{ fontFamily: "'M PLUS Rounded 1c', sans-serif" }}>
