@@ -72,7 +72,7 @@ export default function EventDetailPage() {
 useEffect(() => {
   if (typeof id !== 'string' || !id) return;
 
-  const fetchEventData = async () => {
+const fetchEventData = async () => {
   setLoading(true);
   try {
     const eventRef = doc(db, "events", id as string);
@@ -86,14 +86,13 @@ useEffect(() => {
     const eventData = { id: eventSnap.id, ...eventSnap.data() } as EventData;
     setEvent(eventData);
 
-    // --- ここからが新しいメンバー取得ロジック ---
     let participatingIds: string[] = [];
 
-    // 新形式 (participatingMemberIds) があればそれを使う
     if (eventData.participatingMemberIds && eventData.participatingMemberIds.length > 0) {
-      participatingIds = eventData.participatingMemberIds;
+      // ★★★ ここで new Set() を使って重複を除去 ★★★
+      participatingIds = [...new Set(eventData.participatingMemberIds)];
     } else {
-      // 古いデータ用の互換性維持ロジック
+      // 古いデータ用の互換性維持ロジック（変更なし）
       const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
       const membershipsSnap = await getDocs(membershipsQuery);
       const eventDate = eventData.date.toDate();
@@ -106,17 +105,15 @@ useEffect(() => {
           return isWithinInterval(eventDate, { start: joined, end: left });
         })
         .map(m => m.personId);
+      // こちらも念のため重複を除去
+      participatingIds = [...new Set(participatingIds)];
     }
 
     if (participatingIds.length > 0) {
-      // 参加者IDリストを元にメンバー情報を取得
       const personsQuery = query(collection(db, "persons"), where("__name__", "in", participatingIds));
       const personsSnap = await getDocs(personsQuery);
-      
-      // Firestoreは'in'クエリの順序を保証しないため、元の順序に並び替える
       const memberMap = new Map(personsSnap.docs.map(d => [d.id, { id: d.id, ...d.data() } as Person]));
       const sortedMembers = participatingIds.map(pid => memberMap.get(pid)).filter((m): m is Person => !!m);
-      
       setActiveMembers(sortedMembers);
     } else {
       setActiveMembers([]);
