@@ -349,11 +349,12 @@ fetchEventData();
             open={lightboxOpen}
             close={() => setLightboxOpen(false)}
             index={lightboxIndex}
-            slides={[
-              { src: event.eventPhotoUrl },
-              { src: event.memberPhotoUrl }
-            ].filter(s => s.src)}
             plugins={[Zoom]}
+            slides={
+              [event.eventPhotoUrl, event.memberPhotoUrl]
+                .filter((url): url is string => !!url)
+                .map(src => ({ src }))
+            }
           />
           {/* ★ 修正ここまで */}
 
