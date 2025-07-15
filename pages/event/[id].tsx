@@ -86,17 +86,22 @@ const fetchEventData = async () => {
     const eventData = { id: eventSnap.id, ...eventSnap.data() } as EventData;
     setEvent(eventData);
 
+    // ★ 1. グループ情報を取得して、マスターの表示順(memberOrder)を確保
+    const groupRef = doc(db, "groups", eventData.groupId);
+    const groupSnap = await getDoc(groupRef);
+    const memberOrder: string[] = groupSnap.exists() ? groupSnap.data().memberOrder || [] : [];
+
     let participatingIds: string[] = [];
 
+    // 新しい形式 (participatingMemberIds) があればそれを使う
     if (eventData.participatingMemberIds && eventData.participatingMemberIds.length > 0) {
-      // ★★★ ここで new Set() を使って重複を除去 ★★★
       participatingIds = [...new Set(eventData.participatingMemberIds)];
     } else {
-      // 古いデータ用の互換性維持ロジック（変更なし）
+      // 古いデータ用の互換性維持ロジック
       const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
       const membershipsSnap = await getDocs(membershipsQuery);
       const eventDate = eventData.date.toDate();
-      participatingIds = membershipsSnap.docs
+      participatingIds = [...new Set(membershipsSnap.docs
         .map(d => d.data() as Membership)
         .filter(m => {
           if (!m.joinedAt) return true;
@@ -104,16 +109,21 @@ const fetchEventData = async () => {
           const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000); 
           return isWithinInterval(eventDate, { start: joined, end: left });
         })
-        .map(m => m.personId);
-      // こちらも念のため重複を除去
-      participatingIds = [...new Set(participatingIds)];
+        .map(m => m.personId))];
     }
 
     if (participatingIds.length > 0) {
       const personsQuery = query(collection(db, "persons"), where("__name__", "in", participatingIds));
       const personsSnap = await getDocs(personsQuery);
+      
       const memberMap = new Map(personsSnap.docs.map(d => [d.id, { id: d.id, ...d.data() } as Person]));
-      const sortedMembers = participatingIds.map(pid => memberMap.get(pid)).filter((m): m is Person => !!m);
+      
+      // ★ 2. マスターの表示順(memberOrder)を元に、このイベントの参加者だけをフィルタリングして並び替える
+      const participatingIdSet = new Set(participatingIds);
+      const sortedMembers = memberOrder
+        .map(personId => memberMap.get(personId))
+        .filter((member): member is Person => !!member && participatingIdSet.has(member.id));
+      
       setActiveMembers(sortedMembers);
     } else {
       setActiveMembers([]);
