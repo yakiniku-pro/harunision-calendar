@@ -11,7 +11,7 @@ import { User } from "firebase/auth";
 // ★ 1. ライトボックス用のコンポーネントとCSSをインポート
 import Lightbox from "yet-another-react-lightbox";
 import "yet-another-react-lightbox/styles.css";
-
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
 
 // 型定義
 interface EventData {
@@ -57,8 +57,8 @@ export default function EventDetailPage() {
   const [chekiSaveStatus, setChekiSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   
   // ★ 2. ライトボックスの開閉を管理するstate
-  const [eventPhotoOpen, setEventPhotoOpen] = useState(false);
-  const [memberPhotoOpen, setMemberPhotoOpen] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   const isAdmin = user ? ADMIN_UIDS.includes(user.uid) : false;
 
@@ -330,7 +330,7 @@ fetchEventData();
             {event.eventPhotoUrl && (
               <div>
                 <h3 className="font-semibold text-gray-700 mb-1">イベント写真</h3>
-                <button type="button" onClick={() => setEventPhotoOpen(true)} className="w-full h-auto cursor-zoom-in text-left">
+                <button type="button" onClick={() => { setLightboxIndex(0); setLightboxOpen(true); }} className="w-full h-auto cursor-zoom-in text-left">
                   <Image src={event.eventPhotoUrl} alt="イベント写真" width={640} height={360} className="rounded-lg object-cover" />
                 </button>
               </div>
@@ -338,7 +338,7 @@ fetchEventData();
             {event.memberPhotoUrl && (
               <div>
                 <h3 className="font-semibold text-gray-700 mb-1">メンバー写真</h3>
-                <button type="button" onClick={() => setMemberPhotoOpen(true)} className="w-full h-auto cursor-zoom-in text-left">
+                <button type="button" onClick={() => { setLightboxIndex(1); setLightboxOpen(true); }} className="w-full h-auto cursor-zoom-in text-left">
                   <Image src={event.memberPhotoUrl} alt="メンバー写真" width={640} height={360} className="rounded-lg object-cover" />
                 </button>
               </div>
@@ -346,14 +346,14 @@ fetchEventData();
           </div>
 
           <Lightbox
-            open={eventPhotoOpen}
-            close={() => setEventPhotoOpen(false)}
-            slides={event.eventPhotoUrl ? [{ src: event.eventPhotoUrl }] : []}
-          />
-          <Lightbox
-            open={memberPhotoOpen}
-            close={() => setMemberPhotoOpen(false)}
-            slides={event.memberPhotoUrl ? [{ src: event.memberPhotoUrl }] : []}
+            open={lightboxOpen}
+            close={() => setLightboxOpen(false)}
+            index={lightboxIndex}
+            slides={[
+              { src: event.eventPhotoUrl },
+              { src: event.memberPhotoUrl }
+            ].filter(s => s.src)}
+            plugins={[Zoom]}
           />
           {/* ★ 修正ここまで */}
 
