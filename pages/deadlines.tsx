@@ -2,10 +2,10 @@ import { useEffect, useState, useMemo } from "react";
 import { collection, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
-import { format, differenceInDays, addDays, startOfToday } from "date-fns";
+import { format, addDays, startOfToday } from "date-fns";
 import { ja } from "date-fns/locale";
 
-// 型定義
+// --- 型定義 ---
 interface Deadline {
   eventId: string;
   eventTitle: string;
@@ -14,7 +14,7 @@ interface Deadline {
   url: string;
 }
 
-// トグルセクション用のコンポーネント
+// --- トグルセクション用のコンポーネント ---
 const DeadlineSection = ({ title, deadlines, colorClasses, isOpen, onToggle }: {
   title: string;
   deadlines: Deadline[];
@@ -65,6 +65,10 @@ export default function DeadlinesPage() {
     soon: true,
     later: false,
   });
+  
+  // ★★★ フィルターの状態を管理するStateを追加 ★★★
+  const [filterSenko, setFilterSenko] = useState(false);
+  const [filterChusen, setFilterChusen] = useState(false);
 
   useEffect(() => {
     const fetchDeadlines = async () => {
@@ -78,19 +82,22 @@ export default function DeadlinesPage() {
         eventsSnap.forEach(doc => {
           const event = doc.data();
           const salePeriods = event.ticketSales;
-          if (Array.isArray(salePeriods)) {
-            salePeriods.forEach(period => {
-              if (period && period.endAt && period.endAt.toDate() >= today) {
-                deadlines.push({
-                  eventId: doc.id,
-                  eventTitle: event.title,
-                  saleName: period.saleName,
-                  endAt: period.endAt,
-                  url: period.url,
-                });
-              }
-            });
-          }
+          // 新旧両方のデータ形式に対応
+          const salesArray = Array.isArray(salePeriods) ? salePeriods : 
+            (typeof salePeriods === 'object' && salePeriods !== null) ? 
+            Object.entries(salePeriods).map(([key, value]) => ({ saleName: key, ...(value as object) })) : [];
+
+          salesArray.forEach((period: any) => {
+            if (period && period.endAt && period.endAt.toDate() >= today) {
+              deadlines.push({
+                eventId: doc.id,
+                eventTitle: event.title,
+                saleName: period.saleName,
+                endAt: period.endAt,
+                url: period.url,
+              });
+            }
+          });
         });
         deadlines.sort((a, b) => a.endAt.toMillis() - b.endAt.toMillis());
         setAllDeadlines(deadlines);
@@ -103,16 +110,24 @@ export default function DeadlinesPage() {
     fetchDeadlines();
   }, []);
 
+  // ★★★ フィルターロジックをuseMemoに追加 ★★★
   const categorizedDeadlines = useMemo(() => {
     const today = startOfToday();
-    const tomorrow = addDays(today, 2); // 今日の終わりから見て明日いっぱい
-    const nextWeek = addDays(today, 8); // 今日の終わりから見て7日後いっぱい
+    const tomorrow = addDays(today, 2);
+    const nextWeek = addDays(today, 8);
+
+    const filtered = allDeadlines.filter(d => {
+      const saleName = d.saleName || '';
+      const senkoMatch = !filterSenko || saleName.includes('先行');
+      const chusenMatch = !filterChusen || saleName.includes('抽選');
+      return senkoMatch && chusenMatch;
+    });
 
     const urgent: Deadline[] = [];
     const soon: Deadline[] = [];
     const later: Deadline[] = [];
 
-    allDeadlines.forEach(d => {
+    filtered.forEach(d => {
       const endDate = d.endAt.toDate();
       if (endDate < tomorrow) {
         urgent.push(d);
@@ -123,7 +138,7 @@ export default function DeadlinesPage() {
       }
     });
     return { urgent, soon, later };
-  }, [allDeadlines]);
+  }, [allDeadlines, filterSenko, filterChusen]);
 
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -148,6 +163,29 @@ export default function DeadlinesPage() {
           </Link>
         </div>
         
+        {/* ★★★ フィルターボタンのUIを追加 ★★★ */}
+        <div className="p-3 bg-white/70 backdrop-blur-sm border border-white/30 rounded-xl shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 mr-2">絞り込み:</span>
+            <button
+              onClick={() => setFilterSenko(!filterSenko)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                filterSenko ? 'bg-sky-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              先行のみ
+            </button>
+            <button
+              onClick={() => setFilterChusen(!filterChusen)}
+              className={`px-3 py-1 text-xs font-semibold rounded-full transition-colors ${
+                filterChusen ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              抽選のみ
+            </button>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <DeadlineSection
             title="期限：今日～明日まで"
