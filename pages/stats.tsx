@@ -12,7 +12,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 ChartJS.register( CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler );
 
 // --- 型定義 ---
-interface Person { id: string; primaryName: string; color?: string; }
+interface Person { id: string; primaryName: string; color?: string; type?: 'group'; } // ★ typeを追加
 interface Group { id: string; name: string; }
 interface EventData { id: string; title: string; date: Timestamp; groupId: string; }
 interface MonthlyStat { totalEvents: number; participatedEvents: number; chekis: { [personId: string]: number }; }
@@ -24,7 +24,7 @@ interface OshiHighlightStats {
   monthlyChekis: { [month: string]: number };
 }
 
-// --- ヘルパー関数: 16進数カラーコードをRGBに変換 ---
+// --- ヘルパー関数 ---
 const hexToRgb = (hex: string) => {
   const cleanHex = hex.startsWith('#') ? hex.substring(1) : hex;
   let r = 0, g = 0, b = 0;
@@ -40,7 +40,6 @@ const hexToRgb = (hex: string) => {
   return { r, g, b };
 };
 
-// --- ヘルパー関数: 16進数カラーコードを半透明のRGBAに変換 ---
 const getFadedColor = (hexColor: string, alpha: number = 0.2) => {
   if (!hexColor || (hexColor.length !== 7 && hexColor.length !== 4)) return 'transparent';
   const { r, g, b } = hexToRgb(hexColor);
@@ -92,14 +91,12 @@ export default function StatsPage() {
   );
 }
 
-// --- タブボタンコンポーネント ---
 const TabButton = ({ current, view, label, onClick }: any) => (
   <button onClick={() => onClick(view)} className={`w-1/2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${current === view ? 'bg-white text-pink-500 shadow-md' : 'text-gray-500 hover:bg-white/60'}`}>
     {label}
   </button>
 );
 
-// --- 全体サマリー表示コンポーネント ---
 function SummaryView({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [monthlyStats, setMonthlyStats] = useState<{ [month: string]: MonthlyStat }>({});
@@ -110,13 +107,11 @@ function SummaryView({ user }: { user: User }) {
   useEffect(() => {
     const fetchInitialData = async () => {
         try {
-          const personsSnap = await getDocs(collection(db, "persons"));
+          const personsSnap = await getDocs(query(collection(db, "persons"), orderBy("primaryName")));
           setAllPersons(personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[]);
           const groupsSnap = await getDocs(collection(db, "groups"));
           setAllGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Group[]);
-        } catch (error) {
-          console.error("基本データの取得に失敗しました:", error);
-        }
+        } catch (error) { console.error("基本データの取得に失敗しました:", error); }
     };
     fetchInitialData();
   }, []);
@@ -149,32 +144,45 @@ function SummaryView({ user }: { user: User }) {
           }
         });
         setMonthlyStats(stats);
-      } catch (error) {
-        console.error("統計データの計算に失敗しました:", error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error("統計データの計算に失敗しました:", error); } 
+      finally { setLoading(false); }
     };
     calculateStats();
   }, [user, selectedGroupId]);
 
-  const { totalChekiStats, activeMembers } = useMemo(() => {
+  // ★★★ ここから統計計算ロジックを修正 ★★★
+  const { individualChekiStats, groupChekiStats, activeIndividualMembers } = useMemo(() => {
     const totalChekis: { [personId: string]: number } = {};
-    const memberSet = new Set<string>();
     Object.values(monthlyStats).forEach(monthData => {
       Object.entries(monthData.chekis).forEach(([personId, count]) => {
         totalChekis[personId] = (totalChekis[personId] || 0) + count;
-        memberSet.add(personId);
       });
     });
-    const activeMembers = allPersons.filter(p => memberSet.has(p.id));
-    const sortedTotalChekis = Object.entries(totalChekis)
-      .map(([personId, count]) => {
-        const person = allPersons.find(p => p.id === personId);
-        return { personId, name: person?.primaryName || '不明', color: person?.color || '#ccc', count };
-      }).sort((a, b) => b.count - a.count);
-    return { totalChekiStats: sortedTotalChekis, activeMembers };
-  }, [monthlyStats, allPersons]) || { totalChekiStats: [], activeMembers: [] };
+    
+    const allStats = Object.entries(totalChekis).map(([personId, count]) => {
+      const person = allPersons.find(p => p.id === personId);
+      return {
+        personId,
+        name: person?.primaryName || '不明',
+        color: person?.color || '#ccc',
+        isGroup: person?.type === 'group',
+        count,
+      };
+    });
+    
+    const individualStats = allStats.filter(s => !s.isGroup).sort((a, b) => b.count - a.count);
+    const groupStats = allStats.filter(s => s.isGroup).sort((a, b) => b.count - a.count);
+
+    const memberSet = new Set(Object.keys(totalChekis));
+    const activeMembers = allPersons.filter(p => memberSet.has(p.id) && p.type !== 'group');
+
+    return { 
+      individualChekiStats: individualStats,
+      groupChekiStats: groupStats,
+      activeIndividualMembers: activeMembers
+    };
+  }, [monthlyStats, allPersons]);
+  // ★★★ ここまで修正 ★★★
 
   const sortedMonths = Object.keys(monthlyStats).sort();
   const chartData = {
@@ -203,7 +211,24 @@ function SummaryView({ user }: { user: User }) {
         <>
           <div className="p-4 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">メンバー別 累計チェキ枚数</h2>
-            <ul className="space-y-3">{totalChekiStats.map(({ personId, name, color, count }) => (<li key={personId} className="flex items-center justify-between"><div className="flex items-center gap-3"><span style={{ backgroundColor: color }} className="w-5 h-5 rounded-full border"></span><span className="font-medium text-gray-700">{name}</span></div><span className="font-bold text-lg text-gray-800">{count}枚</span></li>))}{totalChekiStats.length === 0 && <p className="text-sm text-gray-500">チェキの記録はありません。</p>}</ul>
+            {/* ★★★ ここから表示ロジックを修正 ★★★ */}
+            <ul className="space-y-3">
+              {individualChekiStats.map(({ personId, name, color, count }) => (
+                <li key={personId} className="flex items-center justify-between"><div className="flex items-center gap-3"><span style={{ backgroundColor: color }} className="w-5 h-5 rounded-full border"></span><span className="font-medium text-gray-700">{name}</span></div><span className="font-bold text-lg text-gray-800">{count}枚</span></li>
+              ))}
+            </ul>
+            {groupChekiStats.length > 0 && (
+              <>
+                <div className="border-t my-4"></div>
+                <ul className="space-y-3">
+                  {groupChekiStats.map(({ personId, name, color, count }) => (
+                    <li key={personId} className="flex items-center justify-between"><div className="flex items-center gap-3"><span style={{ backgroundColor: color }} className="w-5 h-5 rounded-full border"></span><span className="font-medium text-gray-700">{name}</span></div><span className="font-bold text-lg text-gray-800">{count}枚</span></li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {individualChekiStats.length === 0 && groupChekiStats.length === 0 && <p className="text-sm text-gray-500">チェキの記録はありません。</p>}
+            {/* ★★★ ここまで修正 ★★★ */}
           </div>
           <div className="p-4 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">月別イベント参加数</h2>
@@ -211,7 +236,7 @@ function SummaryView({ user }: { user: User }) {
           </div>
           <div className="p-4 bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl shadow-sm">
             <h2 className="text-xl font-semibold mb-4 text-gray-800">月別・メンバー別チェキ枚数</h2>
-            <div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50/50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">月</th>{activeMembers.map(member => (<th key={member.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center justify-center gap-2"><span style={{ backgroundColor: member.color || '#ccc' }} className="w-3 h-3 rounded-full border"></span>{member.primaryName}</div></th>))}</tr></thead><tbody className="bg-white/80 divide-y divide-gray-200">{sortedMonths.map(month => (<tr key={month}><td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">{format(parse(month, 'yyyy-MM', new Date()), 'yy年M月', { locale: ja })}</td>{activeMembers.map(member => (<td key={member.id} className="px-4 py-4 whitespace-nowrap text-center text-gray-500">{monthlyStats[month]?.chekis[member.id] || 0}</td>))}</tr>))}</tbody></table></div>
+            <div className="overflow-x-auto"><table className="min-w-full divide-y divide-gray-200"><thead className="bg-gray-50/50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">月</th>{activeIndividualMembers.map(member => (<th key={member.id} className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"><div className="flex items-center justify-center gap-2"><span style={{ backgroundColor: member.color || '#ccc' }} className="w-3 h-3 rounded-full border"></span>{member.primaryName}</div></th>))}</tr></thead><tbody className="bg-white/80 divide-y divide-gray-200">{sortedMonths.map(month => (<tr key={month}><td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">{format(parse(month, 'yyyy-MM', new Date()), 'yy年M月', { locale: ja })}</td>{activeIndividualMembers.map(member => (<td key={member.id} className="px-4 py-4 whitespace-nowrap text-center text-gray-500">{monthlyStats[month]?.chekis[member.id] || 0}</td>))}</tr>))}</tbody></table></div>
           </div>
         </>
       }
@@ -219,7 +244,7 @@ function SummaryView({ user }: { user: User }) {
   );
 }
 
-// --- 推し活ハイライト表示コンポーネント ---
+// ★★★ HighlightViewも同様に、typeがgroupでないメンバーだけをドロップダウンに表示するように修正 ★★★
 function HighlightView({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [allPersons, setAllPersons] = useState<Person[]>([]);
@@ -230,7 +255,7 @@ function HighlightView({ user }: { user: User }) {
     const calculateAllOshiStats = async () => {
       setLoading(true);
       try {
-        const personsSnap = await getDocs(collection(db, "persons"));
+        const personsSnap = await getDocs(query(collection(db, "persons")));
         const persons = personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[];
         setAllPersons(persons);
 
@@ -276,7 +301,10 @@ function HighlightView({ user }: { user: User }) {
     calculateAllOshiStats();
   }, [user]);
 
-  const oshiList = Object.keys(oshiStats).map(id => allPersons.find(p => p.id === id)).filter(Boolean) as Person[];
+  const oshiList = Object.keys(oshiStats)
+    .map(id => allPersons.find(p => p.id === id))
+    .filter((p): p is Person => !!p && p.type !== 'group'); // ★ typeがgroupでないメンバーのみをリストアップ
+    
   const selectedOshiData = selectedOshiId ? oshiStats[selectedOshiId] : null;
   const selectedOshiInfo = selectedOshiId ? allPersons.find(p => p.id === selectedOshiId) : null;
 
@@ -322,30 +350,7 @@ function HighlightView({ user }: { user: User }) {
       </div>
       {selectedOshiData && selectedOshiInfo && oshiChartData && (
         <div className="p-6 bg-white/80 backdrop-blur-sm border-2 rounded-2xl shadow-lg" style={{ borderColor: selectedOshiInfo.color || '#ccc' }}>
-          <div 
-            className="text-center mb-4 p-2 rounded-lg" 
-            // 背景色をメンバーカラーの半透明バージョンに設定
-            style={{ 
-              backgroundColor: getFadedColor(selectedOshiInfo.color || '#ccc', 0.25) // 不透明度を少し上げて調整
-            }}
-          >
-            <p 
-              className="text-sm" 
-              style={{ 
-                color: '#1a202c' // すべての文字色を濃い色に固定
-              }}
-            >
-              あなたの推し活ハイライト
-            </p>
-            <h3 
-              className="text-3xl font-bold" 
-              style={{ 
-                color: '#1a202c' // すべての文字色を濃い色に固定
-              }}
-            >
-              {selectedOshiInfo.primaryName}
-            </h3>
-          </div>
+          <div className="text-center mb-4 p-2 rounded-lg" style={{ backgroundColor: getFadedColor(selectedOshiInfo.color || '#ccc', 0.25) }}><p className="text-sm" style={{ color: '#1a202c' }}>あなたの推し活ハイライト</p><h3 className="text-3xl font-bold" style={{ color: '#1a202c' }}>{selectedOshiInfo.primaryName}</h3></div>
           <div className="grid grid-cols-2 gap-4 text-center">
             <div><p className="text-xs text-gray-500">累計チェキ枚数</p><p className="text-2xl font-bold">{selectedOshiData.totalChekis}<span className="text-sm font-normal ml-1">枚</span></p></div>
             <div><p className="text-xs text-gray-500">参加イベント数</p><p className="text-2xl font-bold">{selectedOshiData.attendedEventsCount}<span className="text-sm font-normal ml-1">回</span></p></div>

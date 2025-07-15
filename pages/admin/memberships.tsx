@@ -13,20 +13,29 @@ interface Group { id: string; name: string; memberOrder?: string[]; }
 interface Person { id: string; primaryName: string; }
 interface Membership { id: string; personId: string; groupId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; }
 
+// 日付を安全にフォーマットするヘルパー関数
+const formatDateField = (dateValue: any): string => {
+  if (!dateValue) return '';
+  if (typeof dateValue.toDate === 'function') {
+    return format(dateValue.toDate(), "yyyy年MM月dd日 (E)", { locale: ja });
+  }
+  try {
+    return format(new Date(dateValue), "yyyy年MM月dd日 (E)", { locale: ja });
+  } catch {
+    return '無効な日付';
+  }
+};
+
 export default function ManageMembershipsPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [allGroups, setAllGroups] = useState<Group[]>([]);
   const [allPersons, setAllPersons] = useState<Person[]>([]);
   const [allMemberships, setAllMemberships] = useState<Membership[]>([]);
-
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [memberOrder, setMemberOrder] = useState<string[]>([]);
-
   const [newPersonId, setNewPersonId] = useState("");
   const [newJoinDate, setNewJoinDate] = useState(new Date().toISOString().split('T')[0]);
-
   const router = useRouter();
 
   useEffect(() => {
@@ -111,15 +120,19 @@ export default function ManageMembershipsPage() {
     setMemberOrder(newOrder);
   };
 
+  const getPersonName = (personId: string) => allPersons.find(p => p.id === personId)?.primaryName || '不明な人物';
+  
+  const activeMembersInOrder = memberOrder
+    .map(pid => {
+      const membership = allMemberships.find(m => m.personId === pid && m.groupId === selectedGroupId && m.leftAt === null);
+      return membership ? { id: pid, name: getPersonName(pid), joinedAt: membership.joinedAt } : null;
+    })
+    .filter(member => member !== null);
+
+  const availablePersons = allPersons.filter(p => !allMemberships.some(m => m.personId === p.id && m.groupId === selectedGroupId && m.leftAt === null));
+
   if (loading) return <div className="p-4 text-center">読み込み中...</div>;
   if (!user) return null;
-
-  const getPersonName = (personId: string) => allPersons.find(p => p.id === personId)?.primaryName || '不明な人物';
-  const activeMembersInOrder = memberOrder.map(pid => {
-    const membership = allMemberships.find(m => m.personId === pid && m.groupId === selectedGroupId && m.leftAt === null);
-    return { id: pid, name: getPersonName(pid), joinedAt: membership?.joinedAt || null };
-  });
-  const registeredPersonIds = new Set(allMemberships.map(m => m.personId));
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-8">
@@ -129,7 +142,6 @@ export default function ManageMembershipsPage() {
           ← ダッシュボードに戻る
         </Link>
       </div>
-
       <div>
         <label htmlFor="group-select" className="block text-sm font-medium text-gray-700">管理するグループを選択</label>
         <select id="group-select" value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)}
@@ -138,47 +150,36 @@ export default function ManageMembershipsPage() {
           {allGroups.map(group => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </div>
-
       {selectedGroupId && (
         <>
           <div className="p-4 bg-white rounded-lg shadow">
             <h2 className="text-lg font-semibold mb-2">在籍メンバーを追加</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               <select value={newPersonId} onChange={(e) => setNewPersonId(e.target.value)} className="p-2 border rounded-md">
                 <option value="">-- 人物を選択 --</option>
-                {allPersons.filter(p => !registeredPersonIds.has(p.id)).map(person => (
+                {availablePersons.map(person => (
                   <option key={person.id} value={person.id}>{person.primaryName}</option>
                 ))}
               </select>
-              
-              {/* ★ 変更箇所：シンプルな日付入力に戻す */}
-              <input 
-                type="date" 
-                value={newJoinDate} 
-                onChange={(e) => setNewJoinDate(e.target.value)} 
-                className="p-2 border rounded-md"
-              />
-
+              <input type="date" value={newJoinDate} onChange={(e) => setNewJoinDate(e.target.value)} className="p-2 border rounded-md"/>
               <button onClick={handleAddMembership} className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
                 このメンバーをグループに追加
               </button>
             </div>
           </div>
-          
           <div className="p-4 bg-white rounded-lg shadow">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">在籍メンバーと表示順</h2>
               <button onClick={handleSaveOrder} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">この表示順を保存</button>
             </div>
             <ul className="space-y-2">
-              {activeMembersInOrder.map((member, index) => (
+              {activeMembersInOrder.map((member, index) => member && (
                 <li key={member.id} className="p-2 border rounded flex justify-between items-center">
                   <div>
                     <p className="font-medium">{member.name}</p>
-                    {/* こちらの曜日表示は残します */}
                     {member.joinedAt && (
                       <p className="text-sm text-gray-500">
-                        加入日: {format(member.joinedAt.toDate(), "yyyy年MM月dd日 (E)", { locale: ja })}
+                        加入日: {formatDateField(member.joinedAt)}
                       </p>
                     )}
                   </div>

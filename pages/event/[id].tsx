@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect, useState, useMemo } from "react";
-import { doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp, Timestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { ADMIN_UIDS } from "@/lib/config";
 import { format, isWithinInterval, isPast, parse, isAfter, startOfDay } from "date-fns";
@@ -15,6 +15,7 @@ import "yet-another-react-lightbox/styles.css";
 
 // 型定義
 interface EventData {
+  id: string;
   title: string; date: any; venue: string; openTime: string; startTime: string;
   prices: { tierName: string; amount: number; drinks: string; }[];
   womenOnlyArea: string; photoPolicy: { still: string; video: string; };
@@ -24,9 +25,10 @@ interface EventData {
   attendanceBonus: string; eventPhotoUrl?: string; memberPhotoUrl?: string;
   groupId: string;
   status?: 'published' | 'cancelled' | 'draft';
+  participatingMemberIds?: string[];
 }
 interface Person { id: string; primaryName:string; color?: string; }
-interface Membership { personId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; groupId: string; }
+interface Membership { id: string; personId: string; nameDuringMembership: string; joinedAt: any; leftAt: any | null; groupId: string; }
 
 // セクション表示用コンポーネント
 const InfoSection = ({ title, children, condition = true }: { title: string, children: React.ReactNode, condition?: boolean }) => {
@@ -67,72 +69,88 @@ export default function EventDetailPage() {
   }, [event]);
 
 
-  useEffect(() => {
-    if (typeof id !== 'string' || !id) return;
+useEffect(() => {
+  if (typeof id !== 'string' || !id) return;
 
-    const fetchEventData = async () => {
-      setLoading(true);
-      try {
-        const eventRef = doc(db, "events", id);
-        const eventSnap = await getDoc(eventRef);
+  const fetchEventData = async () => {
+  setLoading(true);
+  try {
+    const eventRef = doc(db, "events", id as string);
+    const eventSnap = await getDoc(eventRef);
 
-        if (!eventSnap.exists()) {
-          setEvent(null);
-          return;
-        }
-        const eventData = eventSnap.data() as EventData;
-        setEvent(eventData);
+    if (!eventSnap.exists() || eventSnap.data().status === 'cancelled') {
+      setEvent(null);
+      return;
+    }
+    
+    const eventData = { id: eventSnap.id, ...eventSnap.data() } as EventData;
+    setEvent(eventData);
 
-        const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
-        const membershipsSnap = await getDocs(membershipsQuery);
-        const eventDate = eventData.date.toDate();
+    // --- ここからが新しいメンバー取得ロジック ---
+    let participatingIds: string[] = [];
 
-        const activePersonIds = membershipsSnap.docs
-          .map(d => d.data() as Membership)
-          .filter(m => {
-            const joined = m.joinedAt.toDate();
-            const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000);
-            return isWithinInterval(eventDate, { start: joined, end: left });
-          })
-          .map(m => m.personId);
+    // 新形式 (participatingMemberIds) があればそれを使う
+    if (eventData.participatingMemberIds && eventData.participatingMemberIds.length > 0) {
+      participatingIds = eventData.participatingMemberIds;
+    } else {
+      // 古いデータ用の互換性維持ロジック
+      const membershipsQuery = query(collection(db, "memberships"), where("groupId", "==", eventData.groupId));
+      const membershipsSnap = await getDocs(membershipsQuery);
+      const eventDate = eventData.date.toDate();
+      participatingIds = membershipsSnap.docs
+        .map(d => d.data() as Membership)
+        .filter(m => {
+          if (!m.joinedAt) return true;
+          const joined = m.joinedAt.toDate();
+          const left = m.leftAt ? m.leftAt.toDate() : new Date(8640000000000000); 
+          return isWithinInterval(eventDate, { start: joined, end: left });
+        })
+        .map(m => m.personId);
+    }
 
-        if (activePersonIds.length > 0) {
-          const personsQuery = query(collection(db, "persons"), where("__name__", "in", activePersonIds));
-          const personsSnap = await getDocs(personsQuery);
-          setActiveMembers(personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[]);
-        } else {
-          setActiveMembers([]);
-        }
-      } catch (error) {
-        console.error("イベントデータの取得に失敗しました:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (participatingIds.length > 0) {
+      // 参加者IDリストを元にメンバー情報を取得
+      const personsQuery = query(collection(db, "persons"), where("__name__", "in", participatingIds));
+      const personsSnap = await getDocs(personsQuery);
+      
+      // Firestoreは'in'クエリの順序を保証しないため、元の順序に並び替える
+      const memberMap = new Map(personsSnap.docs.map(d => [d.id, { id: d.id, ...d.data() } as Person]));
+      const sortedMembers = participatingIds.map(pid => memberMap.get(pid)).filter((m): m is Person => !!m);
+      
+      setActiveMembers(sortedMembers);
+    } else {
+      setActiveMembers([]);
+    }
+  } catch (error) {
+    console.error("イベントデータの取得に失敗しました:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
-    fetchEventData();
+fetchEventData();
 
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser && typeof id === 'string') {
-        const userRecordRef = doc(db, "events", id, "userRecords", currentUser.uid);
-        const userRecordSnap = await getDoc(userRecordRef);
-        if (userRecordSnap.exists()) {
-          const data = userRecordSnap.data();
-          setParticipated(data.participated || false);
-          setChekiMemo(data.chekiMemo || {});
-        } else {
-          setParticipated(false);
-          setChekiMemo({});
-        }
+  const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    setUser(currentUser);
+    if (currentUser && typeof id === 'string') {
+      const userRecordRef = doc(db, "events", id, "userRecords", currentUser.uid);
+      const userRecordSnap = await getDoc(userRecordRef);
+      if (userRecordSnap.exists()) {
+        const data = userRecordSnap.data();
+        setParticipated(data.participated || false);
+        setChekiMemo(data.chekiMemo || {});
       } else {
         setParticipated(false);
         setChekiMemo({});
       }
-    });
+    } else {
+      setParticipated(false);
+      setChekiMemo({});
+    }
+  });
 
-    return () => unsubscribe();
-  }, [id]);
+  return () => unsubscribe();
+}, [id]);
 
   const toggleParticipation = async () => {
     if (!user || typeof id !== 'string' || participationStatus !== 'idle') return;

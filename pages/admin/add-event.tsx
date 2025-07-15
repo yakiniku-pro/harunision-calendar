@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { auth, db, storage } from "@/lib/firebase";
-import { collection, addDoc, updateDoc, query, getDocs, orderBy, serverTimestamp, doc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, query, getDocs, orderBy, serverTimestamp, doc, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Link from "next/link";
 import { ADMIN_UIDS } from "@/lib/config";
@@ -13,6 +13,8 @@ import { IMaskInput } from "react-imask";
 interface Group { id: string; name: string; }
 interface PriceTier { tierName: string; amount: string; drinks: '別' | '込み' | 'なし'; }
 interface TimeSlot { startAt: string; endAt: string; location: string; }
+interface Person { id: string; primaryName: string; type?: string; groupId?: string; }
+interface Membership { id: string; personId: string; groupId: string; leftAt: any | null; }
 interface SalePeriod { saleName: string; startAt: string; endAt: string; url: string; } // ★ 日時を単一のstringに統合
 
 // --- ヘルパーコンポーネント ---
@@ -51,6 +53,15 @@ export default function AddEventAdmin() {
   const [attendanceBonus, setAttendanceBonus] = useState("");
   const [eventImage, setEventImage] = useState<File | null>(null);
   const [memberImage, setMemberImage] = useState<File | null>(null);
+  // ★ メンバー情報を保持するためのState
+  const [allPersons, setAllPersons] = useState<Person[]>([]);
+  const [allMemberships, setAllMemberships] = useState<Membership[]>([]);
+
+  // ★ 選択されたグループのメンバーとチェック状態を管理するState
+  const [groupMembers, setGroupMembers] = useState<Person[]>([]);
+  const [groupChekiPerson, setGroupChekiPerson] = useState<Person | null>(null);
+  const [memberChecklist, setMemberChecklist] = useState<{ [id: string]: boolean }>({});
+  const [isGroupChekiAvailable, setIsGroupChekiAvailable] = useState(false);
   
   const priceRefs = useRef<(HTMLInputElement | null)[]>([]);
   const ticketSaleRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -60,19 +71,60 @@ export default function AddEventAdmin() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
-      try {
-        if (currentUser && ADMIN_UIDS.includes(currentUser.uid)) {
-          setUser(currentUser);
+      if (currentUser && ADMIN_UIDS.includes(currentUser.uid)) {
+        setUser(currentUser);
+        try {
           const groupsSnap = await getDocs(query(collection(db, "groups"), orderBy("name")));
           setGroups(groupsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Group[]);
-        } else if (!currentUser) {
-           router.push("/");
-        }
-      } catch (error) { console.error("初期化エラー:", error); } 
-      finally { setLoading(false); }
+          
+          // ★ personsとmembershipsも取得する
+          const personsSnap = await getDocs(query(collection(db, "persons")));
+          setAllPersons(personsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Person[]);
+          
+          const membershipsSnap = await getDocs(collection(db, "memberships"));
+          setAllMemberships(membershipsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Membership[]);
+
+        } catch (e) { console.error("Failed to fetch initial data:", e); }
+      } else {
+        router.push("/");
+      }
+      setLoading(false);
     });
     return () => unsubscribe();
   }, [router]);
+
+useEffect(() => {
+  if (!groupId) {
+    setGroupMembers([]);
+    setGroupChekiPerson(null);
+    setMemberChecklist({});
+    setIsGroupChekiAvailable(false);
+    return;
+  }
+  
+  // 選択されたグループに在籍中(leftAtがnull)のメンバーIDリストを作成
+  const activeMembershipPids = allMemberships
+    .filter(m => m.groupId === groupId && m.leftAt === null)
+    .map(m => m.personId);
+  
+  // ★ 取得済みの全メンバー情報から、在籍中のメンバーを絞り込む
+  const currentGroupPersons = allPersons.filter(p => activeMembershipPids.includes(p.id));
+  
+  // ★ 絞り込んだリストの中から、通常メンバーと「集合」メンバーを正しく振り分ける
+  const regularMembers = currentGroupPersons.filter(p => p.type !== 'group');
+  const groupPerson = currentGroupPersons.find(p => p.type === 'group') || null;
+
+  setGroupMembers(regularMembers);
+  setGroupChekiPerson(groupPerson);
+
+  // デフォルトで全員にチェックを入れる
+  const initialChecklist: { [id: string]: boolean } = {};
+  regularMembers.forEach(member => {
+    initialChecklist[member.id] = true;
+  });
+  setMemberChecklist(initialChecklist);
+  setIsGroupChekiAvailable(false);
+}, [groupId, allPersons, allMemberships]);
 
   const handleArrayChange = (setter: Function, index: number, field: string, value: string) => {
     setter((prev: any[]) => { const newArr = [...prev]; newArr[index] = { ...newArr[index], [field]: value }; return newArr; });
@@ -86,42 +138,56 @@ export default function AddEventAdmin() {
     await uploadBytes(fileRef, compressed);
     return getDownloadURL(fileRef);
   };
-  
-  const handleSubmit = async () => {
-    if (!groupId || !title || !date) return alert("グループ、タイトル、日付は必須です。");
-    setIsSubmitting(true);
-    try {
-      const isMaskedInputComplete = (val: string, length: number) => val && val.length === length;
-      const toTimestamp = (dateTimeStr: string) => isMaskedInputComplete(dateTimeStr, 16) ? new Date(dateTimeStr) : null;
-      
-      const newEventData = {
-        groupId, title, date: new Date(date), venue, 
-        openTime: isMaskedInputComplete(openTime, 5) ? openTime : "", 
-        startTime: isMaskedInputComplete(startTime, 5) ? startTime : "", 
-        status: 'published',
-        prices: prices.filter(p => p.tierName && p.amount).map(p => ({ ...p, amount: Number(p.amount) || 0 })),
-        womenOnlyArea, photoPolicy,
-        ticketSales: ticketSales.filter(s => s.saleName).map(s => ({
-          saleName: s.saleName, url: s.url,
-          startAt: toTimestamp(s.startAt),
-          endAt: toTimestamp(s.endAt),
-        })),
-        performanceTimes: performanceTimes.filter(t => isMaskedInputComplete(t.startAt, 5) && isMaskedInputComplete(t.endAt, 5)),
-        bonusEventTimes: bonusEventTimes.filter(t => isMaskedInputComplete(t.startAt, 5) && isMaskedInputComplete(t.endAt, 5)),
-        attendanceBonus, isNew: true, createdAt: serverTimestamp(),
-      };
-      const docRef = await addDoc(collection(db, "events"), newEventData);
-      
-      const eventPhotoUrl = eventImage ? await compressAndUpload(eventImage, `events/${docRef.id}/event.jpg`) : null;
-      const memberPhotoUrl = memberImage ? await compressAndUpload(memberImage, `events/${docRef.id}/member.jpg`) : null;
-      if (eventPhotoUrl || memberPhotoUrl) {
-          await updateDoc(docRef, { ...(eventPhotoUrl && { eventPhotoUrl }), ...(memberPhotoUrl && { memberPhotoUrl }) });
-      }
-      alert("イベントを追加しました！");
-      router.push("/admin/dashboard");
-    } catch (error) { console.error("イベント追加エラー:", error); alert("イベントの追加に失敗しました。");
-    } finally { setIsSubmitting(false); }
+  const handleMemberCheck = (memberId: string) => {
+    setMemberChecklist(prev => ({ ...prev, [memberId]: !prev[memberId] }));
   };
+const handleSubmit = async () => {
+  if (!groupId || !title || !date) return alert("グループ、タイトル、日付は必須です。");
+  setIsSubmitting(true);
+  try {
+    // ★ 参加メンバーのIDリストを作成
+    const participatingMemberIds = groupMembers
+      .filter(member => memberChecklist[member.id])
+      .map(member => member.id);
+    
+    if (isGroupChekiAvailable && groupChekiPerson) {
+      participatingMemberIds.push(groupChekiPerson.id);
+    }
+    
+    const isMaskedInputComplete = (val: string, length: number) => val && val.length === length && !val.includes('_');
+    const toTimestamp = (dateTimeStr: string) => isMaskedInputComplete(dateTimeStr, 16) ? new Date(dateTimeStr.replace(' ', 'T')) : null;
+    
+    const newEventData = {
+      groupId, title, date: new Date(date), venue, 
+      openTime: isMaskedInputComplete(openTime, 5) ? openTime : "", 
+      startTime: isMaskedInputComplete(startTime, 5) ? startTime : "", 
+      status: 'published' as const,
+      prices: prices.filter(p => p.tierName && p.amount).map(p => ({ ...p, amount: Number(p.amount) || 0 })),
+      womenOnlyArea, photoPolicy,
+      ticketSales: ticketSales.filter(s => s.saleName).map(s => ({
+        saleName: s.saleName, url: s.url,
+        startAt: toTimestamp(s.startAt),
+        endAt: toTimestamp(s.endAt),
+      })),
+      performanceTimes: performanceTimes.filter(t => isMaskedInputComplete(t.startAt, 5) && isMaskedInputComplete(t.endAt, 5)),
+      bonusEventTimes: bonusEventTimes.filter(t => isMaskedInputComplete(t.startAt, 5) && isMaskedInputComplete(t.endAt, 5)),
+      attendanceBonus, 
+      participatingMemberIds, // ★ 作成したリストをデータに追加
+      isNew: true, 
+      createdAt: serverTimestamp(),
+    };
+    const docRef = await addDoc(collection(db, "events"), newEventData);
+    
+    const eventPhotoUrl = eventImage ? await compressAndUpload(eventImage, `events/${docRef.id}/event.jpg`) : null;
+    const memberPhotoUrl = memberImage ? await compressAndUpload(memberImage, `events/${docRef.id}/member.jpg`) : null;
+    if (eventPhotoUrl || memberPhotoUrl) {
+        await updateDoc(docRef, { ...(eventPhotoUrl && { eventPhotoUrl }), ...(memberPhotoUrl && { memberPhotoUrl }) });
+    }
+    alert("イベントを追加しました！");
+    router.push("/admin/dashboard");
+  } catch (error) { console.error("イベント追加エラー:", error); alert("イベントの追加に失敗しました。");
+  } finally { setIsSubmitting(false); }
+};
 
   if (loading) return <div className="p-4 text-center">読み込み中...</div>;
   if (!user) return <div className="p-4 text-center">管理者としてログインしてください。</div>;
@@ -140,7 +206,30 @@ export default function AddEventAdmin() {
           <div><label className="block text-sm font-medium text-gray-700">開演時間</label><MaskedTimeInput value={startTime} onAccept={setStartTime} /></div>
         </div>
       </FormSection>
-      
+      <FormSection title="参加メンバー">
+        {groupId ? (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {groupMembers.map(member => (
+                <label key={member.id} className="flex items-center gap-2 p-2 border rounded-md cursor-pointer hover:bg-gray-50 transition-colors">
+                  <input type="checkbox" checked={!!memberChecklist[member.id]} onChange={() => handleMemberCheck(member.id)} className="h-4 w-4 rounded text-pink-500 focus:ring-pink-400" />
+                  <span className="text-sm select-none">{member.primaryName}</span>
+                </label>
+              ))}
+            </div>
+            {groupChekiPerson && (
+              <div className="border-t pt-4 mt-4">
+                <label className="flex items-center gap-2 p-2 border rounded-md cursor-pointer hover:bg-amber-50 bg-amber-50/50 transition-colors">
+                  <input type="checkbox" checked={isGroupChekiAvailable} onChange={() => setIsGroupChekiAvailable(prev => !prev)} className="h-4 w-4 rounded text-amber-500 focus:ring-amber-400" />
+                  <span className="text-sm font-bold select-none">{groupChekiPerson.primaryName}あり</span>
+                </label>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-gray-500">先にグループを選択してください。</p>
+        )}
+      </FormSection>
       <FormSection title="料金設定">{prices.map((price, index) => (<div key={index} className="grid grid-cols-[1fr,1fr,auto,auto] gap-2 items-center"><input ref={el => { if (el) (priceRefs.current[index] as any) = el; }} value={price.tierName} onChange={e => handleArrayChange(setPrices, index, 'tierName', e.target.value)} placeholder="券種名 (例: 一般)" className="border p-2 rounded"/><input value={price.amount} onChange={e => handleArrayChange(setPrices, index, 'amount', e.target.value)} placeholder="金額" type="number" className="border p-2 rounded"/><select value={price.drinks} onChange={e => handleArrayChange(setPrices, index, 'drinks', e.target.value as any)} className="border p-2 rounded bg-white"><option value="別">D代別</option><option value="込み">D代込</option><option value="なし">D代なし</option></select><button type="button" onClick={() => removeArrayItem(setPrices, index)} className="px-3 py-2 bg-red-500 text-white rounded text-sm">削除</button></div>))}<button type="button" onClick={() => addArrayItem(setPrices, { tierName: '', amount: '', drinks: '別' })} className="text-sm font-medium text-blue-600 hover:underline">+ 料金種別を追加</button></FormSection>
 
       <FormSection title="チケット販売期間">{ticketSales.map((sale, index) => (<div key={index} className="p-3 border rounded-lg space-y-3"><div className="flex justify-between items-center"><input ref={el => { if(el) (ticketSaleRefs.current[index] as any) = el;}} value={sale.saleName} onChange={e => handleArrayChange(setTicketSales, index, 'saleName', e.target.value)} placeholder="販売名称 (例: 先行販売)" className="border p-2 rounded w-full"/><button type="button" onClick={() => removeArrayItem(setTicketSales, index)} className="ml-2 px-3 py-2 bg-red-500 text-white rounded text-sm flex-shrink-0">✕</button></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="text-xs text-gray-500">開始日時</label><MaskedDateTimeInput value={sale.startAt} onAccept={(value:string) => handleArrayChange(setTicketSales, index, 'startAt', value)} /></div><div><label className="text-xs text-gray-500">終了日時</label><MaskedDateTimeInput value={sale.endAt} onAccept={(value:string) => handleArrayChange(setTicketSales, index, 'endAt', value)} /></div></div><input value={sale.url} onChange={e => handleArrayChange(setTicketSales, index, 'url', e.target.value)} placeholder="購入URL" className="w-full border p-2 rounded"/></div>))}<button type="button" onClick={() => addArrayItem(setTicketSales, { saleName: '', startAt: '', endAt: '', url: '' })} className="text-sm font-medium text-blue-600 hover:underline">+ 販売期間を追加</button></FormSection>
