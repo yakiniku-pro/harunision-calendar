@@ -408,7 +408,7 @@ const App = () => {
 
         <main className="container mx-auto p-4 md:p-8 max-w-4xl">
           <section className="infographic-section text-center -mt-4 mb-8 scroll-reveal">
-            <h3 className="font-bold text-amber-800 mb-3">より正確・最新の情報はこちら</h3>
+            <h3 className="font-bold text-amber-800 mb-3">より正確な情報や最新情報はこちら</h3>
             <div className="flex justify-center gap-4 flex-row">
               <a href="https://harunision-official.boosty.app/" target="_blank" rel="noopener noreferrer" className="flex-1 p-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-bold text-center shadow-md">
                 <FontAwesomeIcon icon={faHome} className="mr-2" />公式HP
