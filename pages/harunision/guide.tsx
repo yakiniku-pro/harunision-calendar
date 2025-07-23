@@ -16,7 +16,20 @@ const customStyles = `
         margin-bottom: 2rem; /* 32px */
         box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         border: 2px solid #E5D9B6; /* ボーダーを追加 */
-        scroll-margin-top: 9rem; 
+        scroll-margin-top: 14rem; 
+    }
+    /* smサイズ以上 (タブレット / メニュー2行) */
+    @media (min-width: 640px) {
+        .infographic-section {
+            scroll-margin-top: 11rem;
+        }
+    }
+
+    /* lgサイズ以上 (PC / メニュー1行) */
+    @media (min-width: 1024px) {
+        .infographic-section {
+            scroll-margin-top: 8rem;
+        }
     }
     .infographic-title {
         font-size: 1.875rem; /* 30px */
