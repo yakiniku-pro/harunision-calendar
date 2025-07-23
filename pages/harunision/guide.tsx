@@ -4,7 +4,7 @@ import {
   faHome, faArrowUp, faUsers, faMusic, faTicketAlt, faVolumeUp, faStar, faCompactDisc, faGift,
   faDesktop, faDoorOpen, faCameraRetro, faPeopleArrows, faHandSparkles, faInfoCircle, faShoePrints,
   faCashRegister, faHandshake, faCamera, faUserFriends, faComments, faExclamationTriangle,
-  faMobileAlt, faIdCard, faDoorClosed, faStarHalfAlt
+  faMobileAlt, faIdCard, faDoorClosed, faStarHalfAlt, faSeedling, faGem, faPenFancy
 } from '@fortawesome/free-solid-svg-icons';
 import { faTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
 
@@ -707,63 +707,93 @@ const App = () => {
           </section>
 
           <section id="more-info" className="infographic-section scroll-reveal">
-  <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむための情報</h2>
-  <div className="space-y-8">
-    {/* Youtube番組 */}
-    <div>
-      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faYoutube} className="mr-2" />Youtube番組</h3>
-      <div className="bg-gray-100 p-4 rounded-lg mt-2 flex flex-col sm:flex-row items-center gap-4">
-        <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
-          <img src="https://i.ytimg.com/vi/Ve5zhtWV2-g/mqdefault.jpg" alt="咲け！ハルニシオンのサムネイル" className="youtube-thumbnail" />
-        </a>
-        <div className="text-center sm:text-left">
-          <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">
-            咲け！ハルニシオン
-          </a>
-          <p className="text-sm text-gray-600 mt-1">メンバーの素顔が見られる企画を楽しめる公式YouTube番組です。</p>
-        </div>
-      </div>
-    </div>
+            <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむための情報</h2>
+            <div className="space-y-8">
+                
+                {/* Youtube番組 */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faYoutube} className="mr-2" />Youtube番組</h3>
+                <div className="bg-gray-100 p-4 rounded-lg mt-2 flex flex-col sm:flex-row items-center gap-4">
+                    <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                    <img src="https://i.ytimg.com/vi/Ve5zhtWV2-g/mqdefault.jpg" alt="咲け！ハルニシオンのサムネイル" className="youtube-thumbnail" />
+                    </a>
+                    <div className="text-center sm:text-left">
+                    <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">
+                        咲け！ハルニシオン
+                    </a>
+                    <p className="text-sm text-gray-600 mt-1">メンバーの素顔が見られる企画や、ライブ映像などを楽しめる公式YouTube番組です。</p>
+                    </div>
+                </div>
+                </div>
 
-    {/* 手紙・プレゼント */}
-    <div>
-      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGift} className="mr-2" />手紙・プレゼント</h3>
-      <p>メンバーへの手紙やプレゼントは、主催イベント時に設置されるプレゼントBOXに入れるか、物販スタッフに預けることで渡せます。ただし、生ものや現金・金券は受け取れません。</p>
-    </div>
-    
-    {/* 入場特典 */}
-    <div>
-      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faDoorClosed} className="mr-2" />入場特典</h3>
-      <p>ライブやイベントごとに入場特典が付くことがあります。内容は毎回異なり、公式Xで告知されるので要チェック！</p>
-      <div className="bg-gray-100 p-4 rounded-lg mt-2 text-sm">
-        <p><strong>＜特典の例＞</strong></p>
-        <ul className="list-disc list-inside ml-2 mt-1">
-          <li>好きなメンバーと撮れる写メ券</li>
-          <li>サインありの特典券</li>
-          <li>ポイントカードの追加ポイント など</li>
-        </ul>
-      </div>
-    </div>
-    
-    {/* ポイントカード */}
-    <div>
-      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faStarHalfAlt} className="mr-2" />ポイントカード</h3>
-      <p>ハルニシオンにはお得なポイントカードがあります！物販スタッフに声をかけて作ってもらいましょう。</p>
-       <div className="grid md:grid-cols-2 gap-4 mt-4 text-center">
-        <div className="bg-amber-100 p-4 rounded-lg">
-          <h4 className="font-bold">ポイントが貯まる条件</h4>
-          <p>ライブ入場毎に <strong className="text-amber-700">1pt</strong></p>
-          <p>物販5,000円購入毎に <strong className="text-amber-700">1pt</strong></p>
-        </div>
-        <div className="bg-amber-100 p-4 rounded-lg">
-          <h4 className="font-bold">ポイント特典</h4>
-          <p>累計10pt毎に <strong className="text-amber-700">クジ引き</strong></p>
-          <p>累計50ptで <strong className="text-amber-700">オリジナルTシャツ</strong></p>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+                {/* ハルニシオン園芸部 */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faSeedling} className="mr-2" />ハルニシオン園芸部</h3>
+                <p>ハルニシオンの公式ファンクラブ（メンバーシップ）です。限定コンテンツや先行情報など、特典がたくさんあります。</p>
+                <div className="mt-3">
+                    <a href="https://harunision-official.boosty.app/store/memberships" target="_blank" rel="noopener noreferrer" className="inline-block p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-bold text-center shadow-md">
+                    ファンクラブに入会する
+                    </a>
+                </div>
+                </div>
+
+                {/* ONLY FIVE */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGem} className="mr-2" />ONLY FIVE</h3>
+                <p>毎回先着5名限定で、あなただけのオリジナルメッセージ付き写真などが購入できる特別なサービスです。メンバーがXで「オンファイ始めます！」と告知したらチャンス！</p>
+                <div className="mt-3">
+                    <a href="https://only-five.jp/" target="_blank" rel="noopener noreferrer" className="inline-block p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-bold text-center shadow-md">
+                    あらかじめ登録しておく
+                    </a>
+                </div>
+                </div>
+                
+
+                {/* オンラインサイン会 */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faPenFancy} className="mr-2" />オンラインサイン会</h3>
+                <p>1～2ヶ月に一度開催される、オンライン上のサイン会です。イベントごとに特別なテーマのチェキが用意され、普段より豪華なデコレーションをしてもらえます。サインを書いている様子はYouTubeなどで配信され、あなたの名前を読み上げてくれることも！完成したチェキは後日郵送で届きます。</p>
+                </div>
+
+                {/* 手紙・プレゼント */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGift} className="mr-2" />手紙・プレゼント</h3>
+                <p>メンバーへの手紙やプレゼントは、主催イベント時に設置されるプレゼントBOXに入れるか、物販スタッフに預けることで渡せます。ただし、生ものや現金・金券は受け取れません。</p>
+                </div>
+                
+                {/* 入場特典 */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faDoorClosed} className="mr-2" />入場特典</h3>
+                <p>ライブやイベントごとに入場特典が付くことがあります。内容は毎回異なり、公式Xで告知されるので要チェック！</p>
+                <div className="bg-gray-100 p-4 rounded-lg mt-2 text-sm">
+                    <p><strong>＜特典の例＞</strong></p>
+                    <ul className="list-disc list-inside ml-2 mt-1">
+                    <li>好きなメンバーと撮れる写メ券</li>
+                    <li>サインありの特典券</li>
+                    <li>ポイントカードの追加ポイント など</li>
+                    </ul>
+                </div>
+                </div>
+                
+                {/* ポイントカード */}
+                <div>
+                <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faStarHalfAlt} className="mr-2" />ポイントカード</h3>
+                <p>ハルニシオンにはお得なポイントカードがあります！物販スタッフに声をかけて作ってもらいましょう。</p>
+                <div className="grid md:grid-cols-2 gap-4 mt-4 text-center">
+                    <div className="bg-amber-100 p-4 rounded-lg">
+                    <h4 className="font-bold">ポイントが貯まる条件</h4>
+                    <p>ライブ入場毎に <strong className="text-amber-700">1pt</strong></p>
+                    <p>物販5,000円購入毎に <strong className="text-amber-700">1pt</strong></p>
+                    </div>
+                    <div className="bg-amber-100 p-4 rounded-lg">
+                    <h4 className="font-bold">ポイント特典</h4>
+                    <p>累計10pt毎に <strong className="text-amber-700">クジ引き</strong></p>
+                    <p>累計50ptで <strong className="text-amber-700">オリジナルTシャツ</strong></p>
+                    </div>
+                </div>
+                </div>
+            </div>
+            </section>
 
           <footer className="text-center text-gray-500 mt-12 pb-4">
             <p>このガイドはファンが作成した非公式のものです。</p>
