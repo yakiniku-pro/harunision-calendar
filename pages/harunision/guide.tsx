@@ -171,6 +171,19 @@ const bodyContent = `
 
     <main class="container mx-auto p-4 md:p-8 max-w-4xl">
         
+        <!-- 公式リンク -->
+        <section class="infographic-section text-center -mt-4 mb-8">
+            <h3 class="font-bold text-amber-800 mb-3">最新情報やより正確な情報はこちら</h3>
+            <div class="flex justify-center gap-4 flex-col sm:flex-row">
+                <a href="https://harunision-official.boosty.app/" target="_blank" rel="noopener noreferrer" class="p-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition font-bold text-center shadow-md">
+                    <i class="fas fa-home mr-2"></i>公式HP
+                </a>
+                <a href="https://x.com/info_hns" target="_blank" rel="noopener noreferrer" class="p-3 bg-gray-800 text-white rounded-lg hover:bg-black transition font-bold text-center shadow-md">
+                    <i class="fab fa-twitter mr-2"></i>公式X
+                </a>
+            </div>
+        </section>
+
         <!-- 目次 -->
         <nav class="toc sticky top-4 z-10 p-4 rounded-2xl shadow-lg mb-8">
             <h2 class="font-bold text-center text-amber-800 mb-3">MENU</h2>
