@@ -480,7 +480,13 @@ const App = () => {
 
           <section id="tickets" className="infographic-section scroll-reveal">
             <h2 className="infographic-title"><FontAwesomeIcon icon={faTicketAlt} />チケットを入手</h2>
-            <p className="text-center text-gray-700 mb-8">直接見てみたくなったらチケットを購入！</p>
+            <p className="text-center text-gray-700 mb-8">直接見てみたくなったらチケットを購入！<br></br>ライブ日程や詳細の確認は↓こちらから
+            <div className="mt-3">
+                    <a href="https://harunision-calendar.vercel.app/" target="_blank" rel="noopener noreferrer" className="inline-block p-3 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition font-bold text-center shadow-md">
+                    カレンダーをチェック
+                    </a>
+                </div>
+                </p>
             <div className="grid md:grid-cols-2 gap-8">
                 <div className="text-center p-6 bg-gray-100 rounded-xl">
                     <FontAwesomeIcon icon={faDesktop} className="text-5xl text-amber-600 mb-4" />
