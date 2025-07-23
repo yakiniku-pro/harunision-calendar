@@ -31,7 +31,7 @@ const membersData = [
     nickname: 'こころ',
     x_account: '@cocoro_HNS',
     x_url: 'https://x.com/cocoro_HNS',
-    description: '感情を揺さぶる透明でパワフルな歌声が特徴。グループの末っ子。',
+    description: '感情を揺さぶる透明でパワフルな歌声が特徴。人懐っこいグループの末っ子。',
     imgSrc: '../kokoro.webp',
   },
   {
@@ -41,7 +41,7 @@ const membersData = [
     nickname: 'といちゃん',
     x_account: '@toi_HNS',
     x_url: 'https://x.com/toi_HNS',
-    description: '人を惹き混む笑顔ながら、ステージ上でのパフォーマンスは圧倒的。',
+    description: '人を惹き込む笑顔ながら、ステージ上でのパフォーマンスは圧倒的。',
     imgSrc: '../toi.webp',
   },
   {
