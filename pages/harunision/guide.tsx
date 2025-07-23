@@ -6,7 +6,8 @@ import {
   faCashRegister, faHandshake, faCamera, faUserFriends, faComments, faExclamationTriangle,
   faMobileAlt, faIdCard, faDoorClosed, faStarHalfAlt
 } from '@fortawesome/free-solid-svg-icons';
-import { faTwitter } from '@fortawesome/free-brands-svg-icons';
+import { faTwitter, faYoutube } from '@fortawesome/free-brands-svg-icons';
+
 
 
 // --- データ定義 ---
@@ -27,7 +28,7 @@ const membersData = [
     name: '芹沢 心色',
     englishName: 'Kokoa Serizawa',
     color: '#ff6961',
-    nickname: 'ここちゃん',
+    nickname: 'こころ',
     x_account: '@cocoro_HNS',
     x_url: 'https://x.com/cocoro_HNS',
     description: '感情を揺さぶる透明でパワフルな歌声が特徴。グループの末っ子。',
@@ -47,7 +48,7 @@ const membersData = [
     name: '長浜 瑠花',
     englishName: 'Ruka Nagahama',
     color: '#d7bde2',
-    nickname: 'るーるん',
+    nickname: 'るかちゃん',
     x_account: '@ruka_HNS',
     x_url: 'https://x.com/ruka_HNS',
     description: '気品漂うたたずまいに繊細で透明な歌声を持つ。しかし実際に話してみると…',
@@ -57,7 +58,7 @@ const membersData = [
     name: '村瀬 ゆうな',
     englishName: 'Yuna Murase',
     color: '#f8b4b4',
-    nickname: 'ゆうな',
+    nickname: 'うな',
     x_account: '@yuuna_HNS',
     x_url: 'https://x.com/yuuna_HNS',
     description: '大人びた雰囲気を持ち、饒舌で多才。甘い歌声が楽曲に華を添える。',
@@ -67,10 +68,10 @@ const membersData = [
     name: '福間 彩音',
     englishName: 'Ayane Fukuma',
     color: '#a0d8ef',
-    nickname: 'あやねん',
+    nickname: 'あち',
     x_account: '@ayane_HNS',
     x_url: 'https://x.com/ayane_HNS',
-    description: '高嶺の花のような見た目とは裏腹に、感情を乗せたパフォーマンスが得意。',
+    description: '透明感あるビジュアルとは裏腹に、感情の乗った力強いパフォーマンスが魅力。',
     imgSrc: '../ayane.webp',
   },
 ];
@@ -288,8 +289,8 @@ const GlobalStyles = () => (
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
     .youtube-thumbnail {
-        width: 320px;  /* 120pxから変更 */
-        height: 240px; /* 90pxから変更 */
+        width: 240px;  /* 120pxから変更 */
+        height: 180px; /* 90pxから変更 */
         object-fit: cover;
         border-radius: 0.5rem;
         border: 2px solid #E5D9B6;
@@ -421,19 +422,45 @@ const App = () => {
           <nav ref={tocMenuRef} id="toc-menu" className="toc sticky top-4 z-10 p-4 rounded-2xl shadow-lg mb-8">
             <h2 className="font-bold text-center text-amber-800 mb-3">MENU</h2>
             <div className="grid grid-cols-4 gap-2 text-center text-sm">
-              <a href="#page-top" className="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200"><FontAwesomeIcon icon={faArrowUp} className="mr-2" />トップへ</a>
-              <a href="#members" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faUsers} className="mr-2" />メンバー</a>
+              <a href="#page-top" className="p-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200"><FontAwesomeIcon icon={faArrowUp} className="mr-2" />ﾄｯﾌﾟへ</a>
               <a href="#music" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faMusic} className="mr-2" />楽曲</a>
-              <a href="#tickets" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faTicketAlt} className="mr-2" />チケット</a>
-              <a href="#live-rules" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faVolumeUp} className="mr-2" />ライブ</a>
+              <a href="#members" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faUsers} className="mr-2" />ﾒﾝﾊﾞｰ</a>
+              <a href="#tickets" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faTicketAlt} className="mr-2" />ﾁｹｯﾄ</a>
+              <a href="#live-rules" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faVolumeUp} className="mr-2" />ﾗｲﾌﾞ</a>
               <a href="#benefits" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faStar} className="mr-2" />特典会</a>
-              <a href="#release-event" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faCompactDisc} className="mr-2" />リリイベ</a>
+              <a href="#release-event" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faCompactDisc} className="mr-2" />ﾘﾘｲﾍﾞ</a>
               <a href="#more-info" className="p-2 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200"><FontAwesomeIcon icon={faGift} className="mr-2" />その他</a>
             </div>
           </nav>
-          
-          <section id="members" className="infographic-section scroll-reveal">
+
+         <section id="music" className="infographic-section scroll-reveal">
+            <h2 className="infographic-title"><FontAwesomeIcon icon={faMusic} />楽曲を聴いてみよう</h2>
+            <p className="text-center text-gray-700 mb-8">まずは曲から！あなたの好みに合う曲はどれ？ </p>
+            <div className="space-y-6">
+                {musicData.map((category) => (
+                <div key={category.category}>
+                    <h3 className="font-bold text-lg text-amber-700 mb-3">{category.category}</h3>
+                    <div className="flex gap-4 flex-wrap">
+                    {category.songs.map(song => (
+                        <a key={song.title} href={song.url} target="_blank" rel="noopener noreferrer" className="text-center group">
+                        <div className="relative">
+                            <img src={song.thumbnail} alt={`${song.title}のサムネイル`} className="youtube-thumbnail group-hover:scale-105 transition-transform duration-300" />
+                        </div>
+                        <div className="flex items-center justify-center mt-1">
+                            <FontAwesomeIcon icon={faYoutube} className="text-red-500 mr-1.5" />
+                            <span className="text-sm font-semibold group-hover:text-amber-700">{song.title}</span>
+                        </div>
+                        </a>
+                    ))}
+                    </div>
+                </div>
+                ))}
+            </div>
+         </section>
+
+         <section id="members" className="infographic-section scroll-reveal">
             <h2 className="infographic-title"><FontAwesomeIcon icon={faUsers} />メンバー紹介</h2>
+            <p className="text-center text-gray-700 mb-8">気になるメンバーを見つけたらフォローしよう</p>
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
               {membersData.map((member) => (
                 <div key={member.name} className="member-card">
@@ -451,28 +478,9 @@ const App = () => {
             </div>
           </section>
 
-          <section id="music" className="infographic-section scroll-reveal">
-            <h2 className="infographic-title"><FontAwesomeIcon icon={faMusic} />楽曲を聴いてみよう</h2>
-            <p className="text-center text-gray-700 mb-8">まずは曲から！あなたの好みに合う曲はどれ？ (曲名クリックでYouTubeに飛びます)</p>
-            <div className="space-y-6">
-              {musicData.map((category) => (
-                <div key={category.category}>
-                  <h3 className="font-bold text-lg text-amber-700 mb-3">{category.category}</h3>
-                  <div className="flex gap-4 flex-wrap">
-                    {category.songs.map(song => (
-                      <a key={song.title} href={song.url} target="_blank" rel="noopener noreferrer" className="text-center">
-                        <img src={song.thumbnail} alt={`${song.title}のサムネイル`} className="youtube-thumbnail" />
-                        <span className="text-sm font-semibold">{song.title}</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
           <section id="tickets" className="infographic-section scroll-reveal">
-            <h2 className="infographic-title"><FontAwesomeIcon icon={faTicketAlt} />チケットを手に入れよう</h2>
+            <h2 className="infographic-title"><FontAwesomeIcon icon={faTicketAlt} />チケットを入手</h2>
+            <p className="text-center text-gray-700 mb-8">直接見てみたくなったらチケットを購入！</p>
             <div className="grid md:grid-cols-2 gap-8">
                 <div className="text-center p-6 bg-gray-100 rounded-xl">
                     <FontAwesomeIcon icon={faDesktop} className="text-5xl text-amber-600 mb-4" />
@@ -526,40 +534,66 @@ const App = () => {
             </div>
           </section>
 
-          <section id="benefits" className="infographic-section scroll-reveal">
-            <h2 className="infographic-title"><FontAwesomeIcon icon={faStar} />特典会に参加してみよう</h2>
-            <p className="text-center text-gray-700 mb-8">ライブの後は、メンバーと直接交流できる「特典会」があります。参加には特典券が必要です。</p>
-            <div className="overflow-x-auto">
-                <table className="table-custom">
-                    <thead>
-                        <tr>
-                            <th>特典券の種類</th>
-                            <th>価格</th>
-                            <th>内容説明</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>トークあり券</strong><br/>(サイン＋コメントありチェキ)</td>
-                            <td>2,000円</td>
-                            <td>好きなメンバーと2ショットチェキを撮影し、その場でチェキにサインとコメント、日付、名前を入れてもらえます。お話できる時間も一番長いです。<strong>※写メは選択できません</strong></td>
-                        </tr>
-                        <tr>
-                            <td><strong>トークなし券</strong><br/>(サインなしチェキ or 写メ)</td>
-                            <td>1,000円</td>
-                            <td>好きなメンバーと2ショットチェキ(サインなし)または写メを撮影します。<strong>※撮影後のお話はできません</strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div className="highlight-box">
-                <h4 className="font-bold text-lg mb-2"><FontAwesomeIcon icon={faInfoCircle} className="mr-2" /> お得な裏技＆注意点</h4>
-                <ul className="list-disc list-inside text-sm mt-2 space-y-1">
-                    <li><strong>「トークなし券」2枚</strong>で、<strong>「トークあり券」1枚</strong>と同じ内容（サインありチェキ＋トーク）に変更できます。</li>
-                    <li>特典券の有効期限は、購入した月の末日までです。期間内であれば、次のライブで使えます！</li>
-                </ul>
-            </div>
-          </section>
+<section id="benefits" className="infographic-section scroll-reveal">
+  <h2 className="infographic-title"><FontAwesomeIcon icon={faStar} />特典会に参加してみよう</h2>
+  <p className="text-center text-gray-700 mb-8">ライブの後は、メンバーと直接交流できる「特典会」があります。参加には特典券が必要です。</p>
+  
+  <div className="space-y-8">
+    {/* トークあり券 */}
+    <div>
+      <h3 className="font-bold text-lg text-amber-800 bg-amber-100 p-3 rounded-t-lg border-b-2 border-amber-200">
+        トークあり券 <span className="text-sm font-normal">(サイン＋コメントありチェキ)</span>
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="table-custom">
+          <thead>
+            <tr>
+              <th className="w-1/4 sm:w-1/5">価格</th>
+              <th>内容説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>2,000円</td>
+              <td>好きなメンバーと2ショットチェキを撮影し、その場でチェキにサインとコメント、日付、名前を入れてもらえます。お話できる時間も一番長いです。<strong>※写メは選択できません</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {/* トークなし券 */}
+    <div>
+      <h3 className="font-bold text-lg text-amber-800 bg-amber-100 p-3 rounded-t-lg border-b-2 border-amber-200">
+        トークなし券 <span className="text-sm font-normal">(サインなしチェキ or 写メ)</span>
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="table-custom">
+          <thead>
+            <tr>
+              <th className="w-1/4 sm:w-1/5">価格</th>
+              <th>内容説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1,000円</td>
+              <td>好きなメンバーと2ショットチェキ(サインなし)または写メを撮影します。<strong>※撮影後のお話はできません</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div className="highlight-box">
+    <h4 className="font-bold text-lg mb-2"><FontAwesomeIcon icon={faInfoCircle} className="mr-2" /> お得な裏技＆注意点</h4>
+    <ul className="list-disc list-inside text-sm mt-2 space-y-1">
+      <li><strong>「トークなし券」2枚</strong>で、<strong>「トークあり券」1枚</strong>と同じ内容（サインありチェキ＋トーク）に変更できます。</li>
+      <li>特典券の有効期限は、購入した月の末日までです。期間内であれば、次のライブで使えます！</li>
+    </ul>
+  </div>
+</section>
 
           <section className="infographic-section scroll-reveal">
             <h2 className="infographic-title"><FontAwesomeIcon icon={faShoePrints} />特典会の流れ</h2>
@@ -571,15 +605,15 @@ const App = () => {
                         <p>ライブ終了後、会場内に設置される物販ブースに並びます。列がある場合は最後尾に並び、もし「最後尾」カードがあれば受け取りましょう。</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                 <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faTicketAlt} /></div>
                     <div className="text">
                         <h4 className="font-bold">② 特典券を購入する</h4>
-                        <p>スタッフに希望の特典券の種類と枚数を伝えて購入します。お支払いは現金、クレジットカード、PayPay、交通系ICが使えます。</p>
+                        <p>スタッフに希望の特典券の種類と枚数を伝えて購入します。お支払いは現金、クレジットカード（カード・タッチ決済）、交通系IC、IDなどが使えます。（PayPayは使用できないことがあります）</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                 <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faUsers} /></div>
                     <div className="text">
@@ -587,7 +621,7 @@ const App = () => {
                         <p>お目当てのメンバーの列に並びます。最後尾の人が持っている「最後尾」カードを受け取りましょう。</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                  <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faHandshake} /></div>
                     <div className="text">
@@ -595,7 +629,7 @@ const App = () => {
                         <p>自分の後ろに人が来たら、「最後尾こちらです」とカードを渡してあげましょう。</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                 <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faCamera} /></div>
                     <div className="text">
@@ -603,7 +637,7 @@ const App = () => {
                         <p>自分の番が来たら、チェキ撮影担当のスタッフに特典券を渡し、「ソロか2ショットか」「チェキか写メか」を伝えます。</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                 <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faUserFriends} /></div>
                     <div className="text">
@@ -611,7 +645,7 @@ const App = () => {
                         <p>スタッフの案内に従ってメンバーの隣に立ち、ポーズをとって撮影！最高の思い出を作りましょう。</p>
                     </div>
                 </div>
-                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={90} /></div>
+                <div className="flow-arrow"><FontAwesomeIcon icon={faArrowUp} rotation={180} /></div>
                 <div className="flow-step">
                     <div className="icon"><FontAwesomeIcon icon={faComments} /></div>
                     <div className="text">
@@ -673,42 +707,63 @@ const App = () => {
           </section>
 
           <section id="more-info" className="infographic-section scroll-reveal">
-            <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむための情報</h2>
-            <div className="space-y-8">
-                <div>
-                    <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGift} className="mr-2" />手紙・プレゼント</h3>
-                    <p>メンバーへの手紙やプレゼントは、主催イベント時に設置されるプレゼントBOXに入れるか、物販スタッフに預けることで渡せます。ただし、生ものや現金・金券は受け取れません。</p>
-                </div>
-                <div>
-                    <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faDoorClosed} className="mr-2" />入場特典</h3>
-                    <p>ライブやイベントごとに入場特典が付くことがあります。内容は毎回異なり、公式Xで告知されるので要チェック！</p>
-                    <div className="bg-gray-100 p-4 rounded-lg mt-2 text-sm">
-                        <p><strong>＜特典の例＞</strong></p>
-                        <ul className="list-disc list-inside ml-2 mt-1">
-                            <li>好きなメンバーと撮れる写メ券</li>
-                            <li>サインありの特典券</li>
-                            <li>ポイントカードの追加ポイント など</li>
-                        </ul>
-                    </div>
-                </div>
-                <div>
-                    <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faStarHalfAlt} className="mr-2" />ポイントカード</h3>
-                    <p>ハルニシオンにはお得なポイントカードがあります！物販スタッフに声をかけて作ってもらいましょう。</p>
-                     <div className="grid md:grid-cols-2 gap-4 mt-4 text-center">
-                        <div className="bg-amber-100 p-4 rounded-lg">
-                            <h4 className="font-bold">ポイントが貯まる条件</h4>
-                            <p>ライブ入場毎に <strong className="text-amber-700">1pt</strong></p>
-                            <p>物販5,000円購入毎に <strong className="text-amber-700">1pt</strong></p>
-                        </div>
-                        <div className="bg-amber-100 p-4 rounded-lg">
-                            <h4 className="font-bold">ポイント特典</h4>
-                            <p>累計10pt毎に <strong className="text-amber-700">クジ引き</strong></p>
-                            <p>累計50ptで <strong className="text-amber-700">オリジナルTシャツ</strong></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-          </section>
+  <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむための情報</h2>
+  <div className="space-y-8">
+    {/* Youtube番組 */}
+    <div>
+      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faYoutube} className="mr-2" />Youtube番組</h3>
+      <div className="bg-gray-100 p-4 rounded-lg mt-2 flex flex-col sm:flex-row items-center gap-4">
+        <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+          <img src="https://i.ytimg.com/vi/Ve5zhtWV2-g/mqdefault.jpg" alt="咲け！ハルニシオンのサムネイル" className="youtube-thumbnail" />
+        </a>
+        <div className="text-center sm:text-left">
+          <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">
+            咲け！ハルニシオン
+          </a>
+          <p className="text-sm text-gray-600 mt-1">メンバーの素顔が見られる企画を楽しめる公式YouTube番組です。</p>
+        </div>
+      </div>
+    </div>
+
+    {/* 手紙・プレゼント */}
+    <div>
+      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGift} className="mr-2" />手紙・プレゼント</h3>
+      <p>メンバーへの手紙やプレゼントは、主催イベント時に設置されるプレゼントBOXに入れるか、物販スタッフに預けることで渡せます。ただし、生ものや現金・金券は受け取れません。</p>
+    </div>
+    
+    {/* 入場特典 */}
+    <div>
+      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faDoorClosed} className="mr-2" />入場特典</h3>
+      <p>ライブやイベントごとに入場特典が付くことがあります。内容は毎回異なり、公式Xで告知されるので要チェック！</p>
+      <div className="bg-gray-100 p-4 rounded-lg mt-2 text-sm">
+        <p><strong>＜特典の例＞</strong></p>
+        <ul className="list-disc list-inside ml-2 mt-1">
+          <li>好きなメンバーと撮れる写メ券</li>
+          <li>サインありの特典券</li>
+          <li>ポイントカードの追加ポイント など</li>
+        </ul>
+      </div>
+    </div>
+    
+    {/* ポイントカード */}
+    <div>
+      <h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faStarHalfAlt} className="mr-2" />ポイントカード</h3>
+      <p>ハルニシオンにはお得なポイントカードがあります！物販スタッフに声をかけて作ってもらいましょう。</p>
+       <div className="grid md:grid-cols-2 gap-4 mt-4 text-center">
+        <div className="bg-amber-100 p-4 rounded-lg">
+          <h4 className="font-bold">ポイントが貯まる条件</h4>
+          <p>ライブ入場毎に <strong className="text-amber-700">1pt</strong></p>
+          <p>物販5,000円購入毎に <strong className="text-amber-700">1pt</strong></p>
+        </div>
+        <div className="bg-amber-100 p-4 rounded-lg">
+          <h4 className="font-bold">ポイント特典</h4>
+          <p>累計10pt毎に <strong className="text-amber-700">クジ引き</strong></p>
+          <p>累計50ptで <strong className="text-amber-700">オリジナルTシャツ</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 
           <footer className="text-center text-gray-500 mt-12 pb-4">
             <p>このガイドはファンが作成した非公式のものです。</p>
