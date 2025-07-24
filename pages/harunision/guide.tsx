@@ -26,7 +26,7 @@ const membersData = [
   },
   {
     name: '芹沢 心色',
-    englishName: 'Kokoa Serisawa',
+    englishName: 'Kokoro Serisawa',
     color: '#ff6961',
     nickname: 'こころ',
     x_account: '@cocoro_HNS',
