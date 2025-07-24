@@ -26,7 +26,7 @@ const membersData = [
   },
   {
     name: '芹沢 心色',
-    englishName: 'Kokoa Serizawa',
+    englishName: 'Kokoa Serisawa',
     color: '#ff6961',
     nickname: 'こころ',
     x_account: '@cocoro_HNS',
@@ -81,8 +81,8 @@ const musicData = [
   {
     category: '【🔥 盛り上がる曲が好き】',
     songs: [
-      { title: 'gradation', url: 'https://www.youtube.com/watch?v=WLzX5eGR_7s', thumbnail: 'https://i.ytimg.com/vi/WLzX5eGR_7s/mqdefault.jpg' },
-      { title: '音速少女', url: 'https://www.youtube.com/watch?v=eg6qkejk3MQ', thumbnail: 'https://i.ytimg.com/vi/eg6qkejk3MQ/mqdefault.jpg' },
+      { title: 'gradation(MV)', url: 'https://www.youtube.com/watch?v=WLzX5eGR_7s', thumbnail: 'https://i.ytimg.com/vi/WLzX5eGR_7s/mqdefault.jpg' },
+      { title: '音速少女(ﾃﾞﾋﾞｭｰﾗｲﾌﾞ)', url: 'https://www.youtube.com/watch?v=eg6qkejk3MQ', thumbnail: 'https://i.ytimg.com/vi/eg6qkejk3MQ/mqdefault.jpg' },
     ],
   },
   {
@@ -95,21 +95,21 @@ const musicData = [
   {
     category: '【💖 アイドルらしい曲が好き】',
     songs: [
-      { title: 'ハルニシオン', url: 'https://www.youtube.com/watch?v=EqB4Mx4-lxg', thumbnail: 'https://i.ytimg.com/vi/EqB4Mx4-lxg/mqdefault.jpg' },
-      { title: '白春', url: 'https://www.youtube.com/watch?v=ATcZfX0G6R0', thumbnail: 'https://i.ytimg.com/vi/ATcZfX0G6R0/mqdefault.jpg' },
+      { title: 'ハルニシオン(MV)', url: 'https://www.youtube.com/watch?v=EqB4Mx4-lxg', thumbnail: 'https://i.ytimg.com/vi/EqB4Mx4-lxg/mqdefault.jpg' },
+      { title: '白春(ﾃﾞﾋﾞｭｰﾗｲﾌﾞ)', url: 'https://www.youtube.com/watch?v=ATcZfX0G6R0', thumbnail: 'https://i.ytimg.com/vi/ATcZfX0G6R0/mqdefault.jpg' },
     ],
   },
   {
     category: '【🌙 哀愁のある曲が好き】',
     songs: [
       { title: '仮初花火(非公式)', url: 'https://www.youtube.com/watch?v=CgiHwiqNG1U', thumbnail: 'https://i.ytimg.com/vi/CgiHwiqNG1U/mqdefault.jpg' },
-      { title: 'FloweBird', url: 'https://www.youtube.com/watch?v=lgsbJF94n6c', thumbnail: 'https://i.ytimg.com/vi/lgsbJF94n6c/mqdefault.jpg' },
+      { title: 'FloweBird(ﾃﾞﾋﾞｭｰﾗｲﾌﾞ)', url: 'https://www.youtube.com/watch?v=lgsbJF94n6c', thumbnail: 'https://i.ytimg.com/vi/lgsbJF94n6c/mqdefault.jpg' },
     ],
   },
   {
     category: '【🌌 世界観の出ている曲が好き】',
     songs: [
-      { title: '夜明けを合図にして', url: 'https://www.youtube.com/watch?v=v1SBoR8b8yY', thumbnail: 'https://i.ytimg.com/vi/v1SBoR8b8yY/mqdefault.jpg' },
+      { title: '夜明けを合図にして(ﾀﾞﾝﾌﾟﾗ)', url: 'https://www.youtube.com/watch?v=v1SBoR8b8yY', thumbnail: 'https://i.ytimg.com/vi/v1SBoR8b8yY/mqdefault.jpg' },
       { title: '微かなルクス(非公式)', url: 'https://www.youtube.com/watch?v=U4wHNKI3xzI', thumbnail: 'https://i.ytimg.com/vi/U4wHNKI3xzI/mqdefault.jpg' },
     ],
   },
@@ -435,7 +435,7 @@ const App = () => {
 
          <section id="music" className="infographic-section scroll-reveal">
             <h2 className="infographic-title"><FontAwesomeIcon icon={faMusic} />楽曲を聴いてみよう</h2>
-            <p className="text-center text-gray-700 mb-8">まずは曲から！あなたの好みに合う曲はどれ？ </p>
+            <p className="text-center text-gray-700 mb-8">魅力あふれる曲ばかり！<br></br>あなたの好みに合う曲はどれ？ </p>
             <div className="space-y-6">
                 {musicData.map((category) => (
                 <div key={category.category}>
@@ -541,7 +541,7 @@ const App = () => {
           </section>
 
 <section id="benefits" className="infographic-section scroll-reveal">
-  <h2 className="infographic-title"><FontAwesomeIcon icon={faStar} />特典会に参加してみよう</h2>
+  <h2 className="infographic-title"><FontAwesomeIcon icon={faStar} />特典会に参加しよう</h2>
   <p className="text-center text-gray-700 mb-8">ライブの後は、メンバーと直接交流できる「特典会」があります。参加には特典券が必要です。</p>
   
   <div className="space-y-8">
@@ -675,7 +675,7 @@ const App = () => {
           </section>
 
           <section id="release-event" className="infographic-section gradient-bg rounded-2xl p-8 scroll-reveal">
-             <h2 className="infographic-title text-white"><FontAwesomeIcon icon={faCompactDisc} />リリースイベントについて</h2>
+             <h2 className="infographic-title text-white"><FontAwesomeIcon icon={faCompactDisc} />リリースイベント</h2>
              <div className="text-center">
                 <p className="mb-4">デジタルシングルの発売に伴うリリースイベント(リリイベ)は、通常のライブとルールが異なります。</p>
                 <div className="bg-white/20 p-6 rounded-xl space-y-4 text-left">
@@ -713,7 +713,7 @@ const App = () => {
           </section>
 
           <section id="more-info" className="infographic-section scroll-reveal">
-            <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむための情報</h2>
+            <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむには？</h2>
             <div className="space-y-8">
                 
                 {/* Youtube番組 */}
@@ -727,7 +727,7 @@ const App = () => {
                     <a href="https://www.youtube.com/watch?v=Ve5zhtWV2-g&list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">
                         咲け！ハルニシオン
                     </a>
-                    <p className="text-sm text-gray-600 mt-1">メンバーの素顔が見られる企画や、ライブ映像などを楽しめる公式YouTube番組です。</p>
+                    <p className="text-sm text-gray-600 mt-1">メンバーの素顔が詰まった各種映像を楽しめる公式YouTube番組です。</p>
                     </div>
                 </div>
                 </div>
@@ -803,7 +803,13 @@ const App = () => {
 
           <footer className="text-center text-gray-500 mt-12 pb-4">
             <p>このガイドはファンが作成した非公式のものです。</p>
-            <p>最新・正確な情報はハルニシオン公式SNSをご確認ください。</p>
+            <p>最新情報や正確な情報はハルニシオン公式SNSをご確認ください。</p>
+            <br></br>
+            <div className="flex justify-center gap-4 flex-row">
+              <a href="https://x.com/info_hns" target="_blank" rel="noopener noreferrer" className="flex-1 p-3 bg-gray-800 text-white rounded-lg hover:bg-black transition font-bold text-center shadow-md">
+                <FontAwesomeIcon icon={faTwitter} className="mr-2" />公式X
+              </a>
+            </div>
           </footer>
         </main>
       </div>
