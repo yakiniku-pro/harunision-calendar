@@ -131,15 +131,15 @@ export default function GuideClient() {
 
       <nav ref={tocMenuRef} id="toc-menu" className="toc sticky top-4 z-10 p-4 rounded-2xl shadow-lg mb-8">
         <h2 className="font-bold text-center text-amber-800 mb-3">MENU</h2>
-        <div className="grid grid-cols-4 gap-2 text-center text-sm">
-          <a href="#page-top" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faArrowUp} className="mr-2" />ﾄｯﾌﾟへ</a>
-          <a href="#music" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faMusic} className="mr-2" />楽曲</a>
-          <a href="#members" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faUsers} className="mr-2" />ﾒﾝﾊﾞｰ</a>
-          <a href="#tickets" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faTicketAlt} className="mr-2" />ﾁｹｯﾄ</a>
-          <a href="#live-rules" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faVolumeUp} className="mr-2" />ﾗｲﾌﾞ</a>
-          <a href="#benefits" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faStar} className="mr-2" />特典会</a>
-          <a href="#release-event" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faCompactDisc} className="mr-2" />ﾘﾘｲﾍﾞ</a>
-          <a href="#more-info" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100"><FontAwesomeIcon icon={faGift} className="mr-2" />その他</a>
+        <div className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4">
+          <a href="#page-top" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faArrowUp} className="mr-2" />ﾄｯﾌﾟへ</a>
+          <a href="#music" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faMusic} className="mr-2" />楽曲</a>
+          <a href="#members" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faUsers} className="mr-2" />ﾒﾝﾊﾞｰ</a>
+          <a href="#tickets" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faTicketAlt} className="mr-2" />ﾁｹｯﾄ</a>
+          <a href="#live-rules" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faVolumeUp} className="mr-2" />ﾗｲﾌﾞ</a>
+          <a href="#benefits" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faStar} className="mr-2" />特典会</a>
+          <a href="#release-event" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faCompactDisc} className="mr-2" />ﾘﾘｲﾍﾞ</a>
+          <a href="#more-info" className="p-2 bg-white/90 text-slate-700 rounded-xl hover:bg-sky-50 border border-sky-100 whitespace-nowrap"><FontAwesomeIcon icon={faGift} className="mr-2" />その他</a>
         </div>
       </nav>
 
@@ -265,7 +265,7 @@ export default function GuideClient() {
       <section id="more-info" className="infographic-section scroll-reveal">
         <h2 className="infographic-title"><FontAwesomeIcon icon={faGift} />もっと楽しむには？</h2>
         <div className="space-y-8">
-            <div><h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faYoutube} className="mr-2" />Youtube番組</h3><div className="bg-gray-100 p-4 rounded-lg mt-2 flex flex-col sm:flex-row items-center gap-4"><a href="https://www.youtube.com/@harunision" target="_blank" rel="noopener noreferrer" className="flex-shrink-0"><img src="https://i.ytimg.com/vi/Ve5zhtWV2-g/mqdefault.jpg" alt="咲け！ハルニシオンのサムネイル" className="youtube-thumbnail" /></a><div className="text-center sm:text-left"><a href="https://www.youtube.com/@harunision" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">咲け！ハルニシオン</a><p className="text-sm text-gray-600 mt-1">メンバーの素顔が詰まった各種映像を楽しめる公式YouTube番組です。</p></div></div></div>
+            <div><h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faYoutube} className="mr-2" />Youtube番組</h3><div className="bg-gray-100 p-4 rounded-lg mt-2 flex flex-col sm:flex-row items-center gap-4"><a href="https://www.youtube.com/playlist?list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="flex-shrink-0"><img src="https://i.ytimg.com/vi/Ve5zhtWV2-g/mqdefault.jpg" alt="咲け！ハルニシオンのサムネイル" className="youtube-thumbnail" /></a><div className="text-center sm:text-left"><a href="https://www.youtube.com/playlist?list=PLZEvnPYQ_p46RV-GeIjeDfIPHyfbgu6iU" target="_blank" rel="noopener noreferrer" className="font-bold text-amber-800 hover:underline text-lg">咲け！ハルニシオン</a><p className="text-sm text-gray-600 mt-1">メンバーの素顔が詰まった各種映像を楽しめる公式YouTube番組です。</p></div></div></div>
             <div><h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faSeedling} className="mr-2" />ハルニシオン園芸部</h3><p>公式ファンクラブ（メンバーシップ）です。限定コンテンツや先行情報など特典多数！</p><div className="mt-3"><a href="https://harunision-official.boosty.app/store/memberships" target="_blank" rel="noopener noreferrer" className="inline-block p-3 bg-gradient-to-r from-emerald-100 to-sky-100 text-slate-700 rounded-xl hover:from-emerald-50 hover:to-sky-50 transition font-bold text-center shadow-md border border-white/80">ファンクラブに入会する</a></div></div>
             <div><h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faPenFancy} className="mr-2" />オンラインサイン会</h3><p>オンライン上のサイン会。特別なテーマのチェキに豪華なデコレーションをしてもらえます。サインを書いている様子は配信され、あなたの名前を読み上げてくれることも！</p></div>
             <div><h3 className="font-bold text-xl mb-2 text-amber-700"><FontAwesomeIcon icon={faGift} className="mr-2" />手紙・プレゼント</h3><p>主催イベント時に設置されるプレゼントBOXに入れるか、物販スタッフに預けることで渡せます。ただし、生ものや現金・金券は受け取れません。</p></div>
