@@ -16,6 +16,9 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
   const [mounted, setMounted] = useState(false);
   const [isDev, setIsDev] = useState(false);
   const router = useRouter();
+  const isGuidePage = router.pathname === '/harunision/guide';
+  const hideHeader = isGuidePage;
+  const hideFooter = isGuidePage;
 
   // マウント完了後かつユーザーが管理者リストに含まれるか判定
   const isAdmin = mounted && user ? ADMIN_UIDS.includes(user.uid) : false;
@@ -62,45 +65,49 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
         <meta name="description" content="ハルニシオン公式スケジュール" />
       </Head>
 
-      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-white/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link href="/" className="text-xl font-bold text-pink-500 hover:text-pink-600 transition-colors">
-              {isDev && <span className="text-sm font-normal text-green-600 mr-2">[開発環境]</span>}
-              推し活カレンダー
-            </Link>
-            <div className="flex items-center gap-2">
-              {/* マウント前（サーバー側レンダリング時）の不一致を防ぐため mounted を確認 */}
-              {mounted && isAdmin && (
-                <Link href="/admin/dashboard" className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                  管理画面
-                </Link>
-              )}
-              {mounted && (
-                user ? (
-                  <button onClick={handleLogout} className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    ログアウト
-                  </button>
-                ) : (
-                  <button onClick={handleLogin} className="px-3 py-1.5 text-xs font-semibold text-white bg-pink-400 hover:bg-pink-500 rounded-lg shadow-sm transition-colors">
-                    ログイン
-                  </button>
-                )
-              )}
+      {!hideHeader && (
+        <header className="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-white/30">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <Link href="/" className="text-xl font-bold text-pink-500 hover:text-pink-600 transition-colors">
+                {isDev && <span className="text-sm font-normal text-green-600 mr-2">[開発環境]</span>}
+                推し活カレンダー
+              </Link>
+              <div className="flex items-center gap-2">
+                {/* マウント前（サーバー側レンダリング時）の不一致を防ぐため mounted を確認 */}
+                {mounted && isAdmin && (
+                  <Link href="/admin/dashboard" className="px-3 py-1.5 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    管理画面
+                  </Link>
+                )}
+                {mounted && (
+                  user ? (
+                    <button onClick={handleLogout} className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                      ログアウト
+                    </button>
+                  ) : (
+                    <button onClick={handleLogin} className="px-3 py-1.5 text-xs font-semibold text-white bg-pink-400 hover:bg-pink-500 rounded-lg shadow-sm transition-colors">
+                      ログイン
+                    </button>
+                  )
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="flex-grow container mx-auto px-4 py-6 max-w-7xl">
         {children}
       </main>
 
-      <footer className="bg-white border-t border-gray-100 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-          <p>© 2024 ハルニシオン推し活カレンダー</p>
-        </div>
-      </footer>
+      {!hideFooter && (
+        <footer className="bg-white border-t border-gray-100 py-8">
+          <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p>© 2024 ハルニシオン推し活カレンダー</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 };
