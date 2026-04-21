@@ -19,6 +19,7 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
   const isGuidePage = router.pathname === '/harunision/guide';
   const hideHeader = isGuidePage;
   const hideFooter = isGuidePage;
+  const pageTitle = isGuidePage ? 'ハルニシオンの楽しみ方' : title;
 
   // マウント完了後かつユーザーが管理者リストに含まれるか判定
   const isAdmin = mounted && user ? ADMIN_UIDS.includes(user.uid) : false;
@@ -61,7 +62,7 @@ const Layout = ({ children, title = '推し活カレンダー' }: Props) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Head>
-        <title>{title}</title>
+        <title>{pageTitle}</title>
         <meta name="description" content="ハルニシオン公式スケジュール" />
       </Head>
 
